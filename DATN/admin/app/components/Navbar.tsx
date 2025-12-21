@@ -13,7 +13,7 @@ export default function Navbar() {
 
   const toggleLocale = () => {
     setLocale(locale === "vi" ? "en" : "vi");
-  }; 
+  };
 
   return (
     <header className="w-full bg-white shadow px-6 py-3 flex items-center justify-between">
@@ -21,7 +21,7 @@ export default function Navbar() {
       <div className="relative w-72">
         <input
           type="text"
-          placeholder={t("search")}
+          placeholder={t("Search")}
           className="w-full border border-gray-300 rounded-full px-10 py-2 text-sm 
                      focus:outline-none focus:ring focus:border-blue-500 
                      placeholder-gray-700 placeholder:font-medium"
