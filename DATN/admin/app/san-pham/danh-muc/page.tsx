@@ -25,7 +25,7 @@ export default function DanhMucManagementPage() {
     ten_dm: "",
     parent_id: "",
     stt: "",
-    an_hien: "1",
+    an_hien: true,
   });
 
   // Load danh sách danh mục
@@ -54,13 +54,14 @@ export default function DanhMucManagementPage() {
 
   // Mở modal thêm/sửa
   const openModal = (item?: DanhMucItem) => {
+    console.log(item);
     if (item) {
       setEditingId(item.id);
       setForm({
         ten_dm: item.ten_dm,
         parent_id: item.parent_id ? item.parent_id.toString() : "",
         stt: item.stt.toString(),
-        an_hien: item.an_hien ? "1" : "0",
+        an_hien: item.an_hien ? true : false,
       });
     } else {
       setEditingId(null);
@@ -68,7 +69,7 @@ export default function DanhMucManagementPage() {
         ten_dm: "",
         parent_id: "",
         stt: "",
-        an_hien: "1",
+        an_hien: true,
       });
     }
     setIsModalOpen(true);
@@ -83,17 +84,25 @@ export default function DanhMucManagementPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // Kiểm tra các trường bắt buộc
-    if (!form.ten_dm) {
+    if (!form.ten_dm?.trim()) {
       alert("Vui lòng nhập tên danh mục!");
       return;
     }
 
     const payload = {
-      ten_dm: form.ten_dm,
-      parent_id: form.parent_id ? parseInt(form.parent_id) : null,
-      stt: form.stt ? parseInt(form.stt) : 1,
-      an_hien: form.an_hien === "1",
+      ten_dm: form.ten_dm.trim(),
+
+      // parent_id: gửi null hoặc number > 0
+      parent_id:
+        form.parent_id && Number(form.parent_id) > 0
+          ? Number(form.parent_id)
+          : null,
+
+      // stt: luôn là number
+      stt: form.stt ? Number(form.stt) : 1,
+
+      // an_hien: boolean đúng chuẩn BE
+      an_hien: form.an_hien === true,
     };
 
     const url = editingId
@@ -114,15 +123,16 @@ export default function DanhMucManagementPage() {
 
       const json = await res.json();
 
-      if (json.success) {
-        alert(
-          editingId ? "Sửa danh mục thành công!" : "Thêm danh mục thành công!"
-        );
-        closeModal();
-        loadData(); // Reload lại danh sách
-      } else {
+      if (!res.ok || !json.success) {
         alert("Lỗi: " + (json.thong_bao || "Không thành công"));
+        return;
       }
+
+      alert(
+        editingId ? "Sửa danh mục thành công!" : "Thêm danh mục thành công!"
+      );
+      closeModal();
+      loadData();
     } catch (err) {
       alert("Lỗi kết nối server");
     }
@@ -425,9 +435,12 @@ export default function DanhMucManagementPage() {
                   Trạng thái *
                 </label>
                 <select
-                  value={form.an_hien}
+                  value={form.an_hien ? "1" : "0"}
                   onChange={(e) =>
-                    setForm({ ...form, an_hien: e.target.value })
+                    setForm({
+                      ...form,
+                      an_hien: e.target.value === "1" ? true : false,
+                    })
                   }
                   className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
                 >
@@ -458,7 +471,7 @@ export default function DanhMucManagementPage() {
                   </p>
                   <p>
                     <span className="font-medium">Trạng thái:</span>{" "}
-                    {form.an_hien === "1" ? "Hiển thị" : "Ẩn"}
+                    {form.an_hien ? "Hiển thị" : "Ẩn"}
                   </p>
                 </div>
               </div>

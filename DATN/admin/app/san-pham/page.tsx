@@ -8,6 +8,8 @@ interface SanPhamItem {
   ten_sp: string;
   code: string;
   gia: number;
+  is_active: boolean;
+  dvctn: string;
   so_luong: number;
   img: string;
   danh_muc?: { ten_dm: string };
@@ -20,6 +22,10 @@ export default function SanPhamPage() {
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
+
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [limit] = useState(10);
 
   // Form state
   const [form, setForm] = useState({
@@ -35,23 +41,30 @@ export default function SanPhamPage() {
   const [previewUrl, setPreviewUrl] = useState<string>("");
 
   // Load danh sách sản phẩm
-  const loadData = async () => {
+  const loadData = async (page = 1) => {
     setLoading(true);
-    fetch("http://localhost:5000/api/admin/san-pham?limit=50&page=1", {
-      method: "GET",
-      credentials: "include",
-    })
+    fetch(
+      `http://localhost:5000/api/admin/san-pham?limit=${limit}&page=${page}`,
+      {
+        method: "GET",
+        credentials: "include",
+      }
+    )
       .then((res) => (res.ok ? res.json() : Promise.reject()))
       .then((json) => {
-        if (json.success) setData(json.result.data);
+        if (json.success) {
+          setData(json.result.data);
+          setCurrentPage(json.result.pagination.currentPage);
+          setTotalPages(json.result.pagination.totalPages);
+        }
       })
       .catch(console.error)
       .finally(() => setLoading(false));
   };
 
   useEffect(() => {
-    loadData();
-  }, []);
+    loadData(currentPage);
+  }, [currentPage]);
 
   // Mở modal thêm/sửa
   const openModal = (item?: SanPhamItem) => {
@@ -159,6 +172,31 @@ export default function SanPhamPage() {
     }
   };
 
+  const handleApprove = async (id: number) => {
+    if (!confirm("Bạn có chắc muốn duyệt sản phẩm này?")) return;
+
+    try {
+      const res = await fetch(
+        `http://localhost:5000/api/admin/san-pham/${id}/approve`,
+        {
+          method: "PUT",
+          credentials: "include",
+        }
+      );
+
+      const json = await res.json();
+
+      if (json.success) {
+        alert("Duyệt sản phẩm thành công");
+        loadData(currentPage); // reload bảng
+      } else {
+        alert(json.thong_bao);
+      }
+    } catch (err) {
+      alert("Lỗi server");
+    }
+  };
+
   if (loading) return <p className="text-center text-xl py-10">Đang tải...</p>;
 
   return (
@@ -190,17 +228,20 @@ export default function SanPhamPage() {
 
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full">
+          <table className="w-full table-fixed">
             <thead className="bg-gray-50 border-b-2 border-gray-200">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase w-[100px]">
                   STT
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase min-w-96">
                   Tên sản phẩm
                 </th>
                 <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase">
-                  Hình ảnh
+                  Tình trạng
+                </th>
+                <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase">
+                  Đơn vị CTN
                 </th>
                 <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase">
                   Giá
@@ -219,7 +260,7 @@ export default function SanPhamPage() {
                   <td className="px-6 py-4 text-sm text-gray-700">
                     {index + 1}
                   </td>
-                  <td className="px-6 py-4">
+                  <td className="px-6 py-4 min-w-96">
                     <div className="flex items-center gap-3">
                       <img
                         src={`http://localhost:5000${sp.img}`}
@@ -235,11 +276,16 @@ export default function SanPhamPage() {
                     </div>
                   </td>
                   <td className="px-6 py-4 text-center">
-                    <img
-                      src={`http://localhost:5000${sp.img}`}
-                      className="w-20 h-20 object-cover rounded mx-auto border"
-                      alt=""
-                    />
+                    <span
+                      className={`font-medium ${
+                        sp.is_active ? "text-green-600" : "text-red-600"
+                      }`}
+                    >
+                      {sp.is_active ? "Đã duyệt" : "Chưa duyệt"}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4 text-center font-bold">
+                    {sp.dvctn}
                   </td>
                   <td className="px-6 py-4 text-center font-bold text-red-600">
                     {Number(sp.gia).toLocaleString()}₫
@@ -256,23 +302,76 @@ export default function SanPhamPage() {
                     </span>
                   </td>
                   <td className="px-6 py-4 text-center space-x-3">
+                    {!sp.is_active && (
+                      <button
+                        onClick={() => handleApprove(sp.id)}
+                        className="text-green-600 font-medium cursor-pointer
+                 transition-all duration-200 ease-out
+                 hover:-translate-y-1 hover:scale-110"
+                      >
+                        ✅
+                      </button>
+                    )}
                     <button
                       onClick={() => openModal(sp)}
-                      className="text-blue-600 hover:underline font-medium"
+                      className="text-blue-600 font-medium cursor-pointer
+               transition-all duration-200 ease-out
+               hover:-translate-y-1 hover:scale-110 ml-6"
                     >
-                      Sửa
+                      ✎
                     </button>
                     <button
                       onClick={() => handleDelete(sp.id)}
-                      className="text-red-600 hover:underline font-medium"
+                      className="text-red-600 font-medium cursor-pointer
+               transition-all duration-200 ease-out
+               hover:-translate-y-1 hover:scale-110"
                     >
-                      Xóa
+                      🗑️
                     </button>
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
+          {/* Pagination */}
+          <div className="flex justify-center items-center gap-2 mt-6 mb-6">
+            <button
+              disabled={currentPage === 1}
+              onClick={() => setCurrentPage((p) => p - 1)}
+              className="px-4 py-2 border rounded disabled:opacity-50"
+            >
+              ←
+            </button>
+
+            {Array.from({ length: totalPages }, (_, i) => i + 1)
+              .filter(
+                (page) =>
+                  page === 1 ||
+                  page === totalPages ||
+                  Math.abs(page - currentPage) <= 2
+              )
+              .map((page) => (
+                <button
+                  key={page}
+                  onClick={() => setCurrentPage(page)}
+                  className={`px-4 py-2 border rounded ${
+                    page === currentPage
+                      ? "bg-blue-600 text-white"
+                      : "hover:bg-gray-100"
+                  }`}
+                >
+                  {page}
+                </button>
+              ))}
+
+            <button
+              disabled={currentPage === totalPages}
+              onClick={() => setCurrentPage((p) => p + 1)}
+              className="px-4 py-2 border rounded disabled:opacity-50"
+            >
+              →
+            </button>
+          </div>
         </div>
       </div>
 

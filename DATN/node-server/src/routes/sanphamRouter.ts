@@ -38,6 +38,9 @@ import {
   ThuocTinhMap,
 } from "../types/sanpham";
 import { cleanUpfiles } from "../ultis/file";
+
+import multer from "multer";
+
 const router = express.Router();
 interface CustomError {
   message?: string;
@@ -45,6 +48,16 @@ interface CustomError {
   thong_bao?: string;
 }
 type MulterFieldFiles = { [filedname: string]: Express.Multer.File[] };
+
+const upload = multer({
+  storage: multer.diskStorage({
+    destination: "uploads/",
+    filename: (req, file, cb) => {
+      cb(null, Date.now() + "-" + file.originalname);
+    },
+  }),
+});
+
 router.get<{}, {}, {}, GetALLSanPHam>(
   "/",
   async (req: Request, res: Response) => {
@@ -552,5 +565,73 @@ router.delete<updateSanPhamInPut["params"]>(
     }
   }
 );
+
+router.put("/:id", upload.single("hinh_sp"), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const data = req.body;
+    const file = req.file;
+
+    const sanPham = await SanPham.findByPk(id);
+    if (!sanPham) {
+      return res.status(404).json({
+        success: false,
+        thong_bao: "Sản phẩm không tồn tại",
+      });
+    }
+
+    await sanPham.update({
+      ten_sp: data.ten_sp,
+      code: data.code,
+      gia: Number(data.gia),
+      so_luong: Number(data.so_luong),
+      an_hien: Number(data.an_hien),
+      img: file ? file.filename : sanPham.img,
+    });
+
+    return res.json({
+      success: true,
+      thong_bao: "Cập nhật sản phẩm thành công",
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      thong_bao: "Lỗi server khi cập nhật sản phẩm",
+    });
+  }
+});
+
+router.put("/:id/approve", async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const sanPham = await SanPham.findByPk(id);
+    if (!sanPham) {
+      return res.status(404).json({
+        success: false,
+        thong_bao: "Sản phẩm không tồn tại",
+      });
+    }
+
+    if (sanPham.is_active) {
+      return res.json({
+        success: true,
+        thong_bao: "Sản phẩm đã được duyệt trước đó",
+      });
+    }
+
+    await sanPham.update({ is_active: true });
+
+    return res.json({
+      success: true,
+      thong_bao: "Duyệt sản phẩm thành công",
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      thong_bao: "Lỗi máy chủ khi duyệt sản phẩm",
+    });
+  }
+});
 
 export default router;
