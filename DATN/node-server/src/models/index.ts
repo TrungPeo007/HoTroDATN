@@ -15,10 +15,16 @@ import { IMG_SanPham } from './img_sp';
 import { DanhGia } from './danhgia';
 import { IMG_DanhGia } from './img_dg';
 import { PTTT } from './pttt';
+import { GioHang } from './giohang';
+import { GioHangChiTiet } from './giohangct';
+import { Voucher } from './voucher';
+import { KhuyenMaiUser } from './kmaiuser';
+import { DonHang } from './donhang';
 import './associations';
 
 
 
 export {User, Dia_chi_User,DM_San_Pham,YeuThichSp, ThuongHieu,DanhMucTin,TinTuc,YeuThichTin,Banner,
-    SanPham,SanPhamBienThe,ThuocTinh, ThuocTinhSP, IMG_SanPham,DanhGia, IMG_DanhGia, PTTT
+    SanPham,SanPhamBienThe,ThuocTinh, ThuocTinhSP, IMG_SanPham,DanhGia, IMG_DanhGia, PTTT,GioHang,
+    GioHangChiTiet, Voucher, KhuyenMaiUser,
 };

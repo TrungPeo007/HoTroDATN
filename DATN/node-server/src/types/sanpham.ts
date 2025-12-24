@@ -36,3 +36,24 @@ export interface ImgSP {
 export interface ParamsSanPhamBySlug extends ParamsDictionary{
     slug: string;
 }
+export interface allowedUpdateSanPham{
+    ten_sp?: string;
+    code?: string;
+    slug?: string;
+    img?: string| null;
+    sale?: number;
+    gia?: number;
+    so_luong?: number;
+    xuat_xu?: string;
+    dvctn?: string;
+    dvt?: string;
+    mo_ta?: string;
+    an_hien?: number;
+    id_dm?: number|null;
+    id_th?: number|null;
+}
+export interface ParamTimKiemSanPham extends ParsedQs{
+    page: string;
+    limit: string;
+    keyword: string;
+}

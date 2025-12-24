@@ -17,3 +17,9 @@ export const generateSku = ():string=>{
     
     return crypto.randomBytes(4).toString('hex').toUpperCase();
 }
+export const generateOrderCode = (): string=>{
+    const now = new Date();
+    const date = now.toISOString().slice(0, 10).replace(/-/g, "");
+    const random = crypto.randomBytes(2).toString('hex').toUpperCase();
+    return `DH-${date}-${random}`;
+}

@@ -10,3 +10,7 @@ export interface ParamsDanhGiaBySlug extends ParamsDictionary{
 export interface ParamsDanhGiaById extends ParamsDictionary{
     id: string;
 }
+export type RatingAggregateResult = {
+  ratingAvg: string;
+  ratingCount: string;
+};

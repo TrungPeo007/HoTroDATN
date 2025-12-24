@@ -19,7 +19,7 @@ import {
 } from "react-icons/fa";
 
 import Link from "next/link";
-import { useLocale } from "../context/LocaleContext";
+import { useLocale } from "../(admin)/context/LocaleContext";
 import { usePathname } from "next/navigation";
 import { useState, useEffect } from "react";
 
@@ -166,9 +166,9 @@ export default function Sidebar() {
         />
         <SidebarItem
           icon={<FaGlobe />}
-          label={t("page")}
-          href="/trang-don"
-          isActive={pathname.startsWith("/trang-don")}
+          label={t("voucher")}
+          href="/voucher"
+          isActive={pathname.startsWith("/voucher")}
         />
         <SidebarItem
           icon={<FaUserFriends />}

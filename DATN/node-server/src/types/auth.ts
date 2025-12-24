@@ -2,6 +2,7 @@
 
 import { JwtPayload } from 'jsonwebtoken';
 
+
 // Định nghĩa kiểu dữ liệu cho JWT Payload tùy chỉnh
 export interface CustomJwtPayload extends JwtPayload {
     id: number;

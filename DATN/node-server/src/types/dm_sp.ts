@@ -29,3 +29,37 @@ export interface AllowedUpdateDanhMucSP{
     an_hien?: number;
     slug?: string;
 }
+export interface FilterQuery extends ParsedQs {
+    page: string;
+    limit: string;
+    sort: 'price_asc' | 'price_desc' | 'newest' | 'bestseller' | 'popular';
+    id_ths?: string;
+    min_price?: string;
+    max_price?: string;
+    rating?: string;
+    is_on_sale?: string;// true hoặc  1
+    is_stock?: string;//true hoặc  1
+}
+export interface ParamsDanhMucBySlug extends ParamsDictionary{
+    slug: string;
+}
+export interface DanhMucTreeNode {
+    id: number;
+    ten_dm: string;
+    parent_id: number| null;
+    slug: string;
+    children: DanhMucTreeNode[];//chứ mảng con
+}
+
+export interface DanhMucSidebarChild  {
+    id: number;
+    ten_dm: string;
+    slug: string;
+};
+
+export interface DanhMucSidebarParent  {
+    id: number;
+    ten_dm: string;
+    slug: string;
+    children: DanhMucSidebarChild[];
+};

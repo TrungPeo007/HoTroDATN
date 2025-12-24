@@ -6,13 +6,35 @@ import {
   UserCircleIcon,
   MagnifyingGlassIcon,
 } from "@heroicons/react/24/solid";
-import { useLocale } from "../context/LocaleContext";
+import { useLocale } from "../(admin)/context/LocaleContext";
+import { useRouter } from "next/navigation";
 
 export default function Navbar() {
   const { locale, setLocale, t } = useLocale();
+  const router = useRouter();
 
   const toggleLocale = () => {
     setLocale(locale === "vi" ? "en" : "vi");
+  };
+
+  const handleLogout = async () => {
+    try {
+      const res = await fetch("http://localhost:5000/api/logout", {
+        method: "POST",
+        credentials: "include", // ⚠️ BẮT BUỘC
+      });
+
+      const json = await res.json();
+
+      if (json.success) {
+        router.push("/login"); // đá về login
+        router.refresh(); // clear cache layout
+      } else {
+        alert(json.thong_bao || "Logout thất bại");
+      }
+    } catch (err) {
+      alert("Lỗi kết nối server");
+    }
   };
 
   return (
@@ -49,9 +71,12 @@ export default function Navbar() {
           <span className="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full"></span>
         </div>
 
-        <div className="flex items-center gap-2 cursor-pointer hover:text-blue-500 transition-colors">
+        <div
+          className="flex items-center gap-2 cursor-pointer hover:text-blue-500 transition-colors"
+          onClick={handleLogout}
+        >
           <UserCircleIcon className="w-6 h-6" />
-          <span className="text-sm font-medium">{t("account")}</span>
+          <span className="text-sm font-medium">{t("logout")}</span>
         </div>
       </div>
     </header>

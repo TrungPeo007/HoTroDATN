@@ -51,3 +51,29 @@ export const processSanPhamImgThumanail = async(inputPath:  string, filename: st
         throw error
     }
 }
+
+export const processDonHangImg = async(orginalDbPath: string): Promise<string>=>{
+    try {
+        if(!orginalDbPath) return '';//ko  ảnh t rả rổng
+        const projectRoot = path.join(__dirname, '..','..');
+        const  inputFullPath = path.join(projectRoot,'public', orginalDbPath);
+        if(!fs.existsSync(inputFullPath)){
+            ///kiểm trả đường dẫn cchinhs có tồn tại hay ko
+            console.warn(`Không tìm thấy file ảnh gốc: ${inputFullPath}`);
+            return orginalDbPath;
+        }
+        const outputDirName = 'don-hang';
+        const outputDir = path.join(projectRoot,'public',outputDirName);
+        if(!fs.existsSync(outputDir)){
+            await fs.promises.mkdir(outputDir, {recursive: true});
+        }
+        const fileExt = path.extname(inputFullPath) || '.jpg';
+        const newFileName = `don-hang-${Date.now()}-${Math.round(Math.random() *1000)}${fileExt}`;
+        const outputFullPath = path.join(outputDir, newFileName);
+        await fs.promises.copyFile(inputFullPath, outputFullPath)
+        return outputFullPath;
+    } catch (error) {
+        console.error("Lỗi tạo ảnh  đơn hàng:", error);
+        return orginalDbPath; // Gặp lỗi thì fallback về ảnh gốc
+    }
+}

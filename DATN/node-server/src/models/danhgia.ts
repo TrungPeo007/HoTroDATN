@@ -18,13 +18,29 @@ DanhGia.init({
     id: {type: DataType.INTEGER, primaryKey: true, autoIncrement: true},
     id_sp: {type: DataType.INTEGER},
     id_user: {type: DataType.INTEGER},
-    noi_dung: {type: DataType.STRING},
+    noi_dung: {type: DataType.STRING, 
+        set(val) {
+            this.setDataValue('noi_dung',typeof val === 'string' ? val.trim() : val);
+        },
+    },
     so_sao: {type: DataType.INTEGER, allowNull: true},
     ngay_dg: {type: DataType.DATE},
-    phan_hoi: {type: DataType.STRING},
+    phan_hoi: {type: DataType.STRING,
+        set(val) {
+            this.setDataValue('phan_hoi',typeof val === 'string' ? val.trim() : val);
+        },
+    },
     ngay_ph: {type: DataType.DATE},
-    tinh_nang: {type: DataType.STRING},
-    chat_luong: {type: DataType.STRING},
+    tinh_nang: {type: DataType.STRING,
+        set(val) {
+            this.setDataValue('tinh_nang', typeof val === 'string' ? val.trim(): val);
+        },
+    },
+    chat_luong: {type: DataType.STRING,
+        set(val) {
+            this.setDataValue('chat_luong',typeof val === 'string' ? val.trim() : val);
+        },
+    },
 },{
     sequelize,
     tableName: 'danh_gia',
