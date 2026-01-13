@@ -12,3 +12,18 @@ export interface AllowedUpdateBanner{
     vi_tri?: string;
     an_hien?: number;
 }
+type BannerPosition = 'home_top'
+    | 'home_middle'
+    | 'home_bottom'
+    | 'home_slider'
+    | 'popup';
+
+export interface MangBanner {
+    id: number;
+    img: string;
+    url: string | null;
+    vi_tri: BannerPosition;
+    stt: number;
+}
+
+export type GroupedBanner = Record<BannerPosition, MangBanner[]>;

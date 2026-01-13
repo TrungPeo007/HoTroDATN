@@ -3,6 +3,7 @@ export interface GetCartItem{
     id_sp: number;
     id_bt?: number;
     so_luong: number;
+    da_chon: number;
     bien_the: {
         id: number;
         ten_bien_the: string;
@@ -36,11 +37,12 @@ export interface CartItemFormatted{
     so_luong: number;
     max_so_luong: number;
     is_active: boolean;
+    da_chon: number;
 }
 
 export interface ShopInfo{
     id: number;
-    ho_ten: string;
+    ten_shop: string;
     hinh: string | null;
 }
 export interface CartItemWithShop extends CartItemFormatted{

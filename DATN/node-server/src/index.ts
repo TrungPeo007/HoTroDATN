@@ -6,7 +6,7 @@ import cookieParser from "cookie-parser";
 
 import setupSwagger from "./swagger";
 import { adminAuth } from "./middleware/auth";
-
+import "./job/autoComfirm";
 import passport from "passport";
 
 import AuthRouter from "./routes/authRoutes";
@@ -22,12 +22,14 @@ import SanPhamRouter from "./routes/sanphamRouter";
 import PTTTRouter from "./routes/ptttRoutes";
 import VoucherRouter from "./routes/voucherRoutes";
 import DonHangRouter from "./routes/donhangRoutes";
+import ThanhToanRouter from "./routes/thanhtoanRouter";
+import ThongKeRouter from "./routes/thong_keRoutes";
 const app = express();
 app.use(cookieParser());
 app.use(
   cors({
-    origin: process.env.CLENT || "http://localhost:3000",
     credentials: true, // cho phép gửi coookie
+    origin: process.env.CLENT || "http://localhost:3000",
   })
 );
 app.use(express.json());
@@ -50,6 +52,9 @@ app.use("/api/admin/san-pham", SanPhamRouter);
 app.use("/api/admin/pttt", PTTTRouter);
 app.use("/api/admin/voucher", VoucherRouter);
 app.use("/api/admin/don-hang", DonHangRouter);
+app.use("/api/admin/thanh-toan", ThanhToanRouter);
+app.use("/api/admin/thong-ke", ThongKeRouter);
+
 // app.get("/test-admin", adminAuth, (req, res) => {
 //   res.status(200).json({ msg: "Middleware passed!" });
 // });

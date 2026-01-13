@@ -30,6 +30,7 @@ export const createbannerSchema = z.object({
  const ParamsBannerSchema = z.object({
     id: z.string().regex(/^\d+$/, "ID banner phải là số")
 });
+
 export const updateBannerSchema = z.object({
     params: ParamsBannerSchema,
     body: z.object({
@@ -53,5 +54,17 @@ export const updateBannerSchema = z.object({
 
     })
 })
+export const getBannerSchema = z.object({
+    query: z.object({
+        vi_tri: z.enum(BANNER_POSITIONS, 
+            { message: "Vị trí không hợp lệ. Các vị trí cho phép: home_top, home_middle, home_bottom, home_slider, popup" }
+        ),
+    })
+});
+
+
+// Type
+export type GetBannerInput = z.infer<typeof getBannerSchema>;
 export type updateBannerInput = z.infer<typeof updateBannerSchema>;
 export type createbannerInput = z.infer<typeof createbannerSchema>['body'];
+export type getBannerSchema = z.infer<typeof getBannerSchema>['query'];

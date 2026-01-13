@@ -1,439 +1,326 @@
-import express, { Request, Response } from "express";
-import fs from "fs";
-import {
-  createSanPhamInput,
-  createSanPhamSchema,
-  ParamSanPhamIdInput,
-  QuickUpdateSanphamInput,
-  sanPhamIdSchema,
-  updateSanPhamInPut,
-  updateSanPhamSchema,
-} from "../schema/sanpham.schema";
-import { uploadMiddleware } from "../middleware/upload";
-import validate from "../middleware/validate";
-import { sequelize } from "../config/database";
-import {
-  covertWebPathToAbsolutePath,
-  processFilePath,
-  processSanPhamImgThumanail,
-} from "../ultis/pathprocess";
-import {
-  DanhMucTin,
-  DM_San_Pham,
-  IMG_SanPham,
-  SanPham,
-  SanPhamBienThe,
-  ThuocTinh,
-  ThuocTinhSP,
-  ThuongHieu,
-  User,
-} from "../models";
-import { Op, Transaction } from "sequelize";
-import { generateSku, generateSlug } from "../ultis/slugrename";
-import { normalizeBoolean, validateForeignKey } from "../ultis/validate";
+import express, { Request, Response } from 'express';
+import fs from 'fs';
+import { createSanPhamInput, createSanPhamSchema, ParamSanPhamIdInput, QuickUpdateSanphamInput, sanPhamIdSchema, updateSanPhamInPut, updateSanPhamSchema } from '../schema/sanpham.schema';
+import { uploadMiddleware } from '../middleware/upload';
+import validate from '../middleware/validate';
+import { sequelize } from '../config/database';
+import { covertWebPathToAbsolutePath, processFilePath, processSanPhamImgThumanail } from '../ultis/pathprocess';
+import { DanhMucTin, DM_San_Pham, DonHangChiTiet, IMG_SanPham, SanPham, SanPhamBienThe, ThuocTinh, ThuocTinhSP, ThuongHieu, User } from '../models';
+import { Op, Transaction } from 'sequelize';
+import { generateSku, generateSlug } from '../ultis/slugrename';
+import { normalizeBoolean, validateForeignKey } from '../ultis/validate';
 
-import { AuthUser } from "../types/express";
-import {
-  allowedUpdateSanPham,
-  createBienTheSp,
-  createThuocTinhSp,
-  GetALLSanPHam,
-  ImgBienThe,
-  ParamTimKiemSanPham,
-  ThuocTinhMap,
-} from "../types/sanpham";
-import { cleanUpfiles } from "../ultis/file";
-import { ACTIVATED_VALUE, NOT_ACTIVATED_VALUE } from "../config/explain";
-import { DonHangChiTiet } from "../models/donhangct";
+import { AuthUser } from '../types/express';
+import {  allowedUpdateSanPham, createBienTheSp, createThuocTinhSp, GetALLSanPHam, ImgBienThe, ParamTimKiemSanPham, ThuocTinhMap } from '../types/sanpham';
+import { cleanUpfiles } from '../ultis/file';
+import { ACTIVATED_VALUE, NOT_ACTIVATED_VALUE } from '../config/explain';
+
 const router = express.Router();
-interface CustomError {
-  message?: string;
-  status?: number;
-  thong_bao?: string;
+interface CustomError{
+    message?: string;
+    status?: number;
+    thong_bao?: string;
 }
-type MulterFieldFiles = { [filedname: string]: Express.Multer.File[] };
-router.get<{}, {}, {}, GetALLSanPHam>("/kich-hoat", async (req, res) => {
-  try {
-    const page = Number(req.query.page) > 0 ? Number(req.query.page) : 1;
-    const limit = Number(req.query.limit) > 0 ? Number(req.query.limit) : 10;
-    const offset = (page - 1) * limit;
-    const { rows, count } = await SanPham.findAndCountAll({
-      where: { is_active: NOT_ACTIVATED_VALUE },
-      limit: limit,
-      offset: offset,
-      order: [["createdAt", "DESC"]],
-      include: [
-        {
-          model: User,
-          as: "shop",
-          attributes: ["id", "ho_ten"],
-        },
-        {
-          model: DM_San_Pham,
-          as: "danh_muc",
-          attributes: ["ten_dm"],
-        },
-        {
-          model: ThuongHieu,
-          as: "thuong_hieu",
-          attributes: ["ten_th"],
-        },
-      ],
-      distinct: true,
-    });
-    const totalPages = Math.ceil(count / limit);
-    const result = {
-      data: rows,
-      pagination: {
-        currentPage: page,
-        limit: limit,
-        totalItem: count,
-        totalPages: totalPages,
-      },
-    };
-    return res.status(200).json({ result, success: true });
-  } catch (error) {
-    const err = error as CustomError;
-    console.log(err.message);
-    return res.status(500).json({
-      thong_bao: "Lỗi khi lấy danh sách sản phẩm  chưa kích hoạt",
-      success: false,
-    });
-  }
-});
+type MulterFieldFiles = {[filedname: string]: Express.Multer.File[]};
+router.get<{},{},{},GetALLSanPHam>('/kich-hoat',async(req , res)=>{
+	try {
+		const  page = Number(req.query.page) > 0 ? Number(req.query.page) : 1;
+		const limit = Number(req.query.limit) > 0 ? Number(req.query.limit) : 10;
+		const offset = (page -1) * limit;
+		const {rows, count} = await SanPham.findAndCountAll({
+			where: {is_active: NOT_ACTIVATED_VALUE},
+			limit: limit, 
+			offset: offset,
+			order: [['createdAt','DESC']],
+			include: [{
+				model: User,
+				as: 'shop',
+				attributes: ['id','ten_shop']
+			},{
+				model: DM_San_Pham,
+				as: 'danh_muc',
+				attributes: ['ten_dm']
+			},{
+				model: ThuongHieu,
+				as: 'thuong_hieu',
+				attributes: ['ten_th']
+			}],
+			distinct: true
+		});
+		const totalPages = Math.ceil(count/ limit);
+		const result = {
+			data: rows,
+			pagination: {
+				currentPage: page,
+				limit: limit,
+				totalItem: count,
+				totalPages: totalPages
+			}
+		}
+		return res.status(200).json({result, success: true});
+	} catch (error) {
+		const err =error as CustomError;
+		console.log(err.message);
+		return res.status(500).json({thong_bao: "Lỗi khi lấy danh sách sản phẩm  chưa kích hoạt", success: false});
+	}
+})
 //ấn nút duyeetje để dùng api này
-router.patch<ParamSanPhamIdInput>(
-  "/kich-hoat/:id",
-  validate(sanPhamIdSchema),
-  async (req, res) => {
-    try {
-      const { id } = req.params;
-      const sanPham = await SanPham.findByPk(id);
-      if (!sanPham) {
-        throw { status: 404, thong_bao: "Sản phẩm không tồn tại" };
-      }
-      if (normalizeBoolean(sanPham.is_active) === ACTIVATED_VALUE) {
-        return res.status(200).json({
-          thong_bao: "Sản phẩm đã đc duyệt trước đó rồi",
-          success: true,
-        });
-      }
-      await sanPham.update({ is_active: ACTIVATED_VALUE });
-      return res.status(200).json({
-        thong_bao: ` Đã xác thực thành công sản phẩm: ${sanPham.ten_sp}`,
-        success: true,
-      });
-    } catch (error) {
-      const err = error as CustomError;
-      const status = err.status || 500;
-      const thong_bao = err.thong_bao || "Lỗi máy chủ khi duyệt sản phẩm";
-      return res.status(status).json({ thong_bao, success: false });
-    }
-  }
-);
-router.get<{}, {}, {}, GetALLSanPHam>(
-  "/",
-  async (req: Request, res: Response) => {
-    try {
-      const limit = Number(req.query.limit) > 0 ? Number(req.query.limit) : 10;
-      const page = Number(req.query.page) > 0 ? Number(req.query.page) : 1;
-      const offset = (page - 1) * limit;
-      const { rows, count } = await SanPham.findAndCountAll({
-        limit: limit,
-        offset: offset,
-        where: { is_active: ACTIVATED_VALUE },
-        order: [["createdAt", "DESC"]],
-        include: [
-          {
-            model: SanPhamBienThe,
-            as: "san_pham_bien_the",
-            attributes: [
-              "id",
-              "id_sp",
-              "code",
-              "ten_bien_the",
-              "gia",
-              "so_luong",
-              "img",
-              "createdAt",
-            ],
-            order: [["id", "DESC"]],
-          },
-          {
-            model: IMG_SanPham,
-            as: "imgs",
-            attributes: ["url"],
-          },
-          {
-            model: User,
-            as: "shop",
-            attributes: ["id", "ho_ten"],
-          },
-          {
-            model: ThuocTinhSP,
-            as: "thuoctinhsp",
-            attributes: ["id_sp", "id_tt", "gia_tri"],
-            include: [
-              {
-                model: ThuocTinh,
-                as: "ten_thuoc_tinh",
-                attributes: ["id", "ten_thuoc_tinh"],
-              },
-            ],
-          },
-          {
-            model: DM_San_Pham,
-            as: "danh_muc",
-            attributes: ["ten_dm"],
-          },
-          {
-            model: ThuongHieu,
-            as: "thuong_hieu",
-            attributes: ["ten_th"],
-          },
-        ],
-        distinct: true,
-      });
+router.patch<ParamSanPhamIdInput>('/kich-hoat/:id',validate(sanPhamIdSchema),async(req, res)=>{
+	try {
+		const {id} = req.params
+		const sanPham = await SanPham.findByPk(id);
+		if(!sanPham){
+			throw {status: 404, thong_bao: "Sản phẩm không tồn tại"};
+		}
+		if(normalizeBoolean(sanPham.is_active) === ACTIVATED_VALUE){
+			return res.status(200).json({thong_bao: "Sản phẩm đã đc duyệt trước đó rồi", success: true});
+		}
+		await sanPham.update({is_active: ACTIVATED_VALUE});
+		return res.status(200).json({thong_bao: ` Đã xác thực thành công sản phẩm: ${sanPham.ten_sp}`, success: true});
 
-      const totalPages = Math.ceil(count / limit);
-      const danhSachSanPham = await Promise.all(
-        rows.map((sp) => {
-          const item = sp.toJSON();
-          return {
-            ...item,
-            thuoctinhsp:
-              item.thuoctinhsp?.map((tt: ThuocTinhMap) => ({
-                id: tt.id_tt,
-                ten: tt.ten_thuoc_tinh.ten_thuoc_tinh,
-                gia_tri: tt.gia_tri,
-              })) || [],
-          };
-        })
-      );
-      const result = {
-        data: danhSachSanPham,
-        pagination: {
-          currentPage: page,
-          limit: limit,
-          totalItem: count,
-          totalPages: totalPages,
-        },
-      };
-
-      return res.status(200).json({ result, success: true });
-    } catch (error) {
-      const err = error as CustomError;
-      // console.log(err.message);
-      return res
-        .status(500)
-        .json({ thong_bao: "Lỗi máy chủ khi lấy danh sách sản phẩm" });
-    }
-  }
-);
+	} catch (error) {
+		const err = error as CustomError;
+		const status = err.status || 500;
+		const thong_bao = err.thong_bao || "Lỗi máy chủ khi duyệt sản phẩm";
+		return res.status(status).json({thong_bao, success: false})
+	}
+})
+router.get<{},{},{}, GetALLSanPHam>('/',async(req: Request, res: Response)=>{
+	try {
+		const limit = Number(req.query.limit) > 0? Number(req.query.limit) : 10;
+		const page = Number(req.query.page) > 0 ? Number(req.query.page) : 1;
+		const offset = (page -1) * limit;
+		const {rows, count} = await SanPham.findAndCountAll({
+			limit: limit,
+			offset: offset,
+			where: {is_active: ACTIVATED_VALUE},	
+			order: [['createdAt','DESC']],
+				include: [{
+					model: SanPhamBienThe,
+					as: 'san_pham_bien_the',
+					attributes: ['id','id_sp','code','ten_bien_the','gia','so_luong','img','createdAt'],
+					order: [['id','DESC']]
+				},{
+					model: IMG_SanPham,
+					as: 'imgs',
+					attributes: ['url']
+				},{
+					model: User,
+					as: 'shop',
+					attributes: ['id','ten_shop']
+				},{
+					model: ThuocTinhSP,
+					as: 'thuoctinhsp',
+					attributes: ['id_sp','id_tt','gia_tri'],
+						include: [{
+							model: ThuocTinh,
+							as: 'ten_thuoc_tinh',
+							attributes: ['id','ten_thuoc_tinh']
+						}]
+				},{
+					model: DM_San_Pham,
+					as: 'danh_muc',
+					attributes: ['ten_dm']
+				},{
+					model: ThuongHieu,
+					as: 'thuong_hieu',
+					attributes: ['ten_th']
+				}],
+			distinct: true
+		});
+		
+		const totalPages = Math.ceil(count / limit);
+		const danhSachSanPham = await Promise.all(
+			rows.map((sp)=>{
+				const item = sp.toJSON();
+				return {
+					...item,
+					thuoctinhsp: item.thuoctinhsp?.map((tt: ThuocTinhMap)=>({
+						id: tt.id_tt,
+						ten: tt.ten_thuoc_tinh.ten_thuoc_tinh,
+						gia_tri: tt.gia_tri
+					})) || []
+				}
+			})
+		)
+		const result = {
+			data: danhSachSanPham,
+			pagination: {
+				currentPage: page,
+				limit: limit,
+				totalItem: count,
+				totalPages: totalPages
+			}
+		};
+		
+		return res.status(200).json({result, success: true});
+	} catch (error) {
+		const err = error as CustomError;
+		// console.log(err.message);
+		return res.status(500).json({thong_bao: "Lỗi máy chủ khi lấy danh sách sản phẩm"});
+	}
+})
 //api bất tắt noi_bat và khóa cho admin
-router.patch<
-  QuickUpdateSanphamInput["params"],
-  {},
-  QuickUpdateSanphamInput["body"]
->("/:id/quick-update", async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { noi_bat, khoa } = req.body;
-    const sanPham = await SanPham.findByPk(id);
-    if (!sanPham) {
-      throw { status: 404, thong_bao: "Sản phẩm không tồn tại" };
-    }
-    const allowedUpdate: Partial<SanPham> = {};
-    if (khoa !== undefined) {
-      if (normalizeBoolean(sanPham.khoa) !== khoa) {
-        allowedUpdate.khoa = khoa;
-      }
-    }
-    if (noi_bat !== undefined) {
-      if (normalizeBoolean(sanPham.noi_bat) !== noi_bat) {
-        allowedUpdate.noi_bat = noi_bat;
-      }
-    }
+router.patch<QuickUpdateSanphamInput['params'],{},QuickUpdateSanphamInput['body']>('/:id/quick-update',async(req,res)=>{
+	try {
+		const {id} = req.params;
+		const {noi_bat, khoa} = req.body;
+		const sanPham = await SanPham.findByPk(id);
+		if(!sanPham){
+			throw {status: 404, thong_bao: "Sản phẩm không tồn tại"};
+		}
+		const allowedUpdate: Partial<SanPham> = {};
+		if(khoa !== undefined){
+			if(normalizeBoolean(sanPham.khoa) !== khoa){
+				allowedUpdate.khoa = khoa;
+			}
+		}
+		if(noi_bat !== undefined){
+			if(normalizeBoolean(sanPham.noi_bat) !== noi_bat){
+				allowedUpdate.noi_bat = noi_bat;
+			}
+		}
 
-    if (Object.keys(allowedUpdate).length > 0) {
-      await sanPham.update(allowedUpdate);
-    }
-    return res
-      .status(200)
-      .json({ thong_bao: "Cập nhật trạng thái thành công", success: true });
-  } catch (error) {
-    const err = error as CustomError;
-    const status = err.status || 500;
-    const thong_bao =
-      err.thong_bao || "Lỗi xãy ra khi cập nhật trạng thái của sản phẩm";
-    return res.status(status).json({ thong_bao, success: false });
-  }
-});
-
-router.delete<updateSanPhamInPut["params"]>(
-  "/:id",
-  validate(sanPhamIdSchema),
-  async (req, res) => {
-    const t = await sequelize.transaction();
-    try {
-      const { id } = req.params;
-      const sanPham = await SanPham.findByPk(id, {
-        include: [
-          {
-            model: SanPhamBienThe,
-            as: "san_pham_bien_the",
-            attributes: ["img"],
-          },
-          {
-            model: IMG_SanPham,
-            as: "imgs",
-            attributes: ["url"],
-          },
-        ],
-      });
-      if (!sanPham) {
-        throw {
-          status: 404,
-          thong_bao: "ID sản phẩm không tồn tại nên không thể xóa  sản phẩm",
-        };
-      }
-      const sanPhamData = sanPham.toJSON();
-      const fileToUnlink: string[] = [];
-      if (sanPhamData.img) {
-        fileToUnlink.push(sanPham.img);
-      }
-      if (
-        sanPhamData.san_pham_bien_the &&
-        sanPhamData.san_pham_bien_the.length > 0
-      ) {
-        sanPhamData.san_pham_bien_the.map((bt: ImgBienThe) => {
-          if (bt.img) {
-            fileToUnlink.push(bt.img);
-          }
+		if(Object.keys(allowedUpdate).length > 0){
+			await sanPham.update(allowedUpdate);
+		}
+		return res.status(200).json({thong_bao: "Cập nhật trạng thái thành công", success: true});
+	} catch (error) {
+		const err = error as CustomError;
+		const status = err.status || 500;
+		const thong_bao = err.thong_bao || "Lỗi xãy ra khi cập nhật trạng thái của sản phẩm";
+		return res.status(status).json({thong_bao, success: false});
+	}
+})
+router.delete<updateSanPhamInPut['params']>('/:id',validate(sanPhamIdSchema),async(req,res)=>{
+	const t = await sequelize.transaction();
+	try {
+		const {id} = req.params;
+		const sanPham = await SanPham.findByPk(id,{
+			include: [{
+				model: SanPhamBienThe,
+				as: 'san_pham_bien_the',
+				attributes: ['img']
+			},{
+				model: IMG_SanPham,
+				as: 'imgs',
+				attributes: ['url']
+			}]
+		}
+		);
+		if(!sanPham){
+			throw {status: 404 ,thong_bao: "ID sản phẩm không tồn tại nên không thể xóa  sản phẩm"};
+		}
+		const sanPhamData = sanPham.toJSON();
+		const fileToUnlink: string[] = [];
+		if(sanPhamData.img){
+			fileToUnlink.push(sanPham.img);
+		}
+		if(sanPhamData.san_pham_bien_the && sanPhamData.san_pham_bien_the.length > 0){
+			sanPhamData.san_pham_bien_the.map((bt: ImgBienThe)=>{
+				if(bt.img){
+					fileToUnlink.push(bt.img);
+				}
+			})
+		}
+		if(sanPhamData.imgs && sanPhamData.imgs.length > 0){
+			sanPhamData.imgs.map((img: IMG_SanPham)=>{
+				if(img.url){
+					fileToUnlink.push(img.url);
+				}
+			})
+		}
+		const isSold = await DonHangChiTiet.findOne({
+            where: { id_sp: id }
         });
-      }
-      if (sanPhamData.imgs && sanPhamData.imgs.length > 0) {
-        sanPhamData.imgs.map((img: IMG_SanPham) => {
-          if (img.url) {
-            fileToUnlink.push(img.url);
-          }
-        });
-      }
-      const isSold = await DonHangChiTiet.findOne({
-        where: { id_sp: id },
-      });
 
-      if (isSold) {
-        // Ném lỗi 400 (Bad Request) để Frontend hiện thông báo đỏ
-        throw {
-          status: 400,
-          thong_bao:
-            "Sản phẩm đã có đơn hàng. Admin chỉ có thể KHÓA sản phẩm này, không thể xóa vĩnh viễn.",
-        };
-      }
-      await ThuocTinhSP.destroy({
-        where: { id_sp: sanPham.id },
-        transaction: t,
-      });
-      await IMG_SanPham.destroy({
-        where: { id_sp: sanPham.id },
-        transaction: t,
-      });
-      await SanPhamBienThe.destroy({
-        where: { id_sp: sanPham.id },
-        transaction: t,
-      });
-      await sanPham.destroy({ transaction: t });
-      await t.commit();
-      if (fileToUnlink.length > 0) {
-        await Promise.all(
-          fileToUnlink.map((filePath) => {
-            const absolutePath = covertWebPathToAbsolutePath(filePath);
-            return fs.promises.unlink(absolutePath).catch((error) => {
-              console.warn(
-                ` Cảnh báo: Không thể xóa tệp vật lý ${filePath}`,
-                error.message
-              );
-              return Promise.resolve();
-            });
-          })
-        );
-      }
-      return res
-        .status(200)
-        .json({ thong_bao: "Đã xóa thành công sản phẩm", success: true });
-    } catch (error) {
-      await t.rollback();
-      const err = error as CustomError;
-      const status = err.status || 500;
-      const thong_bao = err.thong_bao || "Lôi máy chủ khi xóa sản phẩm";
-      return res.status(status).json({ thong_bao, success: false });
-    }
-  }
-);
-router.get<ParamTimKiemSanPham>("/tim-kiem", async (req, res) => {
-  try {
-    const page = Number(req.query.page) > 0 ? Number(req.query.page) : 1;
-    const limit = Number(req.query.limit) > 0 ? Number(req.query.limit) : 10;
-    const offset = (page - 1) * limit;
-    const { keyword } = req.query;
-    if (!keyword) {
-      return res
-        .status(200)
-        .json({ result: { data: [], pagination: {} }, success: true });
-    }
-    const { rows, count } = await SanPham.findAndCountAll({
-      where: {
-        ten_sp: { [Op.like]: `%${keyword}%` },
-        is_active: ACTIVATED_VALUE,
-      },
-      limit: limit,
-      offset: offset,
-      order: [["createdAt", "DESC"]],
-      include: [
-        {
-          model: User,
-          as: "shop",
-          attributes: ["id", "ho_ten"],
-        },
-        {
-          model: DM_San_Pham,
-          as: "danh_muc",
-          attributes: ["ten_dm"],
-        },
-        {
-          model: ThuongHieu,
-          as: "thuong_hieu",
-          attributes: ["ten_th"],
-        },
-      ],
-      distinct: true,
-    });
-    const totalPages = Math.ceil(count / limit);
-    const result = {
-      data: rows,
-      pagination: {
-        limit: limit,
-        currentPage: page,
-        totalPages: totalPages,
-        totalItem: count,
-      },
-    };
-    return res.status(200).json({ result, success: true });
-  } catch (error) {
-    const err = error as CustomError;
-    return res
-      .status(500)
-      .json({ thong_bao: "LỖi máy chủ khi tìm kiếm sản phẩm" });
-  }
+        if (isSold) {
+            // Ném lỗi 400 (Bad Request) để Frontend hiện thông báo đỏ
+            throw { 
+                status: 400, 
+                thong_bao: "Sản phẩm đã có đơn hàng. Admin chỉ có thể KHÓA sản phẩm này, không thể xóa vĩnh viễn." 
+            };
+        }
+		await ThuocTinhSP.destroy({where: {id_sp: sanPham.id}, transaction: t});
+		await IMG_SanPham.destroy({where: {id_sp: sanPham.id}, transaction: t});
+		await SanPhamBienThe.destroy({where: {id_sp: sanPham.id}, transaction: t});
+		await sanPham.destroy({transaction: t});
+		await t.commit();
+		if(fileToUnlink.length > 0){
+			await Promise.all(
+				fileToUnlink.map((filePath)=>{
+					const absolutePath = covertWebPathToAbsolutePath(filePath);
+					return fs.promises.unlink(absolutePath).catch((error)=>{
+						console.warn(` Cảnh báo: Không thể xóa tệp vật lý ${filePath}`, error.message);
+						return Promise.resolve();
+						
+					});
+				})
+			);
+		}
+		return res.status(200).json({thong_bao: "Đã xóa thành công sản phẩm", success: true});
+	} catch (error) {
+		await t.rollback();
+		const err = error as CustomError;
+		const status = err.status || 500;
+		const thong_bao = err.thong_bao || "Lôi máy chủ khi xóa sản phẩm";
+		return res.status(status).json({thong_bao, success: false});
+	}
 });
+router.get<ParamTimKiemSanPham>('/tim-kiem', async(req, res)=>{
+	try {
+		const page = Number(req.query.page) > 0 ? Number(req.query.page) : 1;
+		const limit = Number(req.query.limit) > 0 ? Number(req.query.limit) : 10;
+		const offset = (page -1) * limit;
+		const {keyword} = req.query;
+		if(!keyword){
+			return res.status(200).json({result: {data: [],pagination: {}}, success: true});
+		}
+		const {rows, count} = await SanPham.findAndCountAll({
+			where: {ten_sp: {[Op.like]: `%${keyword}%`}, is_active: ACTIVATED_VALUE},
+			limit: limit,
+			offset: offset,
+			order: [['createdAt','DESC']],
+				include: [{
+					model: User,
+					as: 'shop',
+					attributes: ['id','ten_shop']
+				},{
+					model: DM_San_Pham,
+					as:'danh_muc',
+					attributes: ['ten_dm']
+				},
+				{
+					model: ThuongHieu,
+					as: 'thuong_hieu',
+					attributes: ['ten_th']
+				}
+			]
+			,distinct: true	
+		});
+		const totalPages = Math.ceil(count/ limit);
+		const result = {
+			data: rows,
+			pagination: {
+				limit: limit,
+				currentPage: page,
+				totalPages: totalPages,
+				totalItem : count,
+			}
+		};
+		return res.status(200).json({result, success: true});
+	} catch (error) {
+		const err = error as CustomError;
+		return res.status(500).json({thong_bao: "LỖi máy chủ khi tìm kiếm sản phẩm"});
+	}
+})
 // router.post<{},{}, createSanPhamInput>('/',uploadMiddleware, validate(createSanPhamSchema),async(req,res)=>{
 //     const t = await sequelize.transaction();//tạo cái nay để lưu dũ liệu dồng bộ ở các bnagr
 //     const oldFileToDelete: string[] = [];
 // 	try {
 // 		const userPayload = req.user as AuthUser;
 // 		const id_user = userPayload.id;
-
+		
 // 		const  {ten_sp, code, gia,sale, so_luong, xuat_xu, dvctn, dvt, mo_ta, an_hien,id_dm, id_th, thuoc_tinh, bien_the} = req.body;
 // 		const files = req.files as MulterFieldFiles;
 // 		const hinhSpFiles = files?.['hinh_sp'] || [];
@@ -451,7 +338,7 @@ router.get<ParamTimKiemSanPham>("/tim-kiem", async (req, res) => {
 // 			throw {status: 404, thong_bao:" Lỗi đồng bộ không thể tạo đường dẫn file"};
 // 		}
 // 		//tạo mã sku tự đông nếu ko thằng nào nhập
-
+		
 // 		let finalCode = code;
 // 		if(!finalCode){
 // 			finalCode = generateSku();
@@ -508,7 +395,8 @@ router.get<ParamTimKiemSanPham>("/tim-kiem", async (req, res) => {
 // 					id_tt: newTT,
 // 					gia_tri: item.value,
 // 				}
-
+				
+			
 // 			}
 // 			)
 // 		);
@@ -525,13 +413,13 @@ router.get<ParamTimKiemSanPham>("/tim-kiem", async (req, res) => {
 // 					skuSet.add(item.code)
 // 				}
 // 			}
-
+			
 // 			const bienTheData = await Promise.all(
 // 					bien_the.map(async(item: createBienTheSp, index: number)=>{
 // 						const bienTheFileKey = `hinh_bien_the_${index}`;
 // 						const bienTheFiles = files[bienTheFileKey]?.[0];
 // 						const bienTheHinhPath = bienTheFiles ? processFilePath(bienTheFiles) : null;
-// 							let finalCodeBienThe = item.code
+// 							let finalCodeBienThe = item.code 
 // 							if(!finalCodeBienThe){
 // 								finalCodeBienThe = generateSku();
 // 							}
@@ -540,7 +428,7 @@ router.get<ParamTimKiemSanPham>("/tim-kiem", async (req, res) => {
 // 							}
 // 							const existingBienThe = await SanPhamBienThe.findOne(
 // 								{
-// 									where: {code: finalCodeBienThe}
+// 									where: {code: finalCodeBienThe}  
 // 								}
 // 							);
 // 							if(existingBienThe){
@@ -555,7 +443,7 @@ router.get<ParamTimKiemSanPham>("/tim-kiem", async (req, res) => {
 // 								img: bienTheHinhPath
 // 							};
 // 					}));
-
+				
 // 			await SanPhamBienThe.bulkCreate(bienTheData, {transaction: t});
 // 		}
 // 		await t.commit();
@@ -569,7 +457,7 @@ router.get<ParamTimKiemSanPham>("/tim-kiem", async (req, res) => {
 // 				console.warn(` Không xóa được file optimized ${filePath}:`, err.message);
 // 				return Promise.resolve();
 // 			})
-// 		}))
+// 		}))  
 // 	   }
 // 	   const err = error as CustomError;
 // 	   console.log(err.message);
@@ -623,9 +511,9 @@ router.get<ParamTimKiemSanPham>("/tim-kiem", async (req, res) => {
 // 		const formattedThuocTinh = sanPhamData.thuoctinhsp.map((tt: ThuocTinhMap)=>({
 // 			id: tt.id_tt,
 // 			ten: tt.ten_thuoc_tinh.ten_thuoc_tinh,
-// 			gia_tri: tt.gia_tri
+// 			gia_tri: tt.gia_tri	
 // 		}));
-
+	
 // 		const finalResult = {
 // 			...sanPhamData,
 // 			thuoctinhsp: formattedThuocTinh
@@ -745,7 +633,7 @@ router.get<ParamTimKiemSanPham>("/tim-kiem", async (req, res) => {
 // 			}
 // 		}
 // 		if(Object.keys(allowedUpdate).length > 0){
-// 			await sanPham.update(allowedUpdate, {transaction: t});
+// 			await sanPham.update(allowedUpdate, {transaction: t});	
 // 		}
 // 		if(hinhSpFiles.length > 0 ){
 // 			const currentImg = await IMG_SanPham.findAll({
@@ -796,7 +684,7 @@ router.get<ParamTimKiemSanPham>("/tim-kiem", async (req, res) => {
 // 				if(!item.gia || !item.so_luong){
 // 					throw {status: 400, thong_bao: "Giá và số lượng của biến thể không đc để trống"};
 // 				}
-
+				
 // 				let finalImg :string|null = "";
 // 				if(item.id){
 // 					//th1 cập nhật trường có gửi id
@@ -804,7 +692,7 @@ router.get<ParamTimKiemSanPham>("/tim-kiem", async (req, res) => {
 // 					//tìm curent biến thế có id trung vioiws item.id
 // 					const bienTheDB = CurrentBienThe.find(v=> v.id == item.id);
 // 					const existingBienThe = await  SanPhamBienThe.findOne({
-// 						where:{
+// 						where:{ 
 // 						code: finalCodeBienThe,
 // 						id: {[Op.not]: item.id}}
 
@@ -821,7 +709,7 @@ router.get<ParamTimKiemSanPham>("/tim-kiem", async (req, res) => {
 // 								oldFileToDelete.push(covertWebPathToAbsolutePath(bienTheDB.img));
 // 							}
 // 						}
-
+						
 // 					}
 // 					await SanPhamBienThe.update({
 // 						ten_bien_the: item.ten_bien_the,
@@ -832,15 +720,16 @@ router.get<ParamTimKiemSanPham>("/tim-kiem", async (req, res) => {
 // 					},{where: {id: item.id},transaction: t});
 // 				}else{
 // 					const existingBienThe = await  SanPhamBienThe.findOne({
-// 						where:{
+// 						where:{ 
 // 						code: finalCodeBienThe}
+
 
 // 					})
 // 					if(existingBienThe){
 // 						throw {status: 409, thong_bao: "Mã Sku của biến thể đã tồn tại mới nhập cái khác"};
 // 					}
 // 					//th 2 tạo mới khi fe không gửi id;
-
+					
 // 					if(bienTheFile){
 // 						finalImg = bienTheFile ? processFilePath(bienTheFile) : null;
 // 					}
@@ -851,7 +740,7 @@ router.get<ParamTimKiemSanPham>("/tim-kiem", async (req, res) => {
 // 						gia: item.gia,
 // 						so_luong: item.so_luong,
 // 						img: finalImg
-
+						
 // 					},{transaction: t});
 
 // 				}
@@ -860,7 +749,7 @@ router.get<ParamTimKiemSanPham>("/tim-kiem", async (req, res) => {
 // 			if(idToDelete.length > 0){
 // 				//kiêm trả xem  biên thể đó có trong dh không
 // 				// const usedVariant = await ChiTietDonHang.findOne({
-//                 //     where: {
+//                 //     where: { 
 //                 //         id_bt: idToDelete // Sequelize tự hiểu là tìm id_bt IN [idsToDelete]
 //                 //     }
 //                 // });
@@ -888,8 +777,8 @@ router.get<ParamTimKiemSanPham>("/tim-kiem", async (req, res) => {
 // 					return Promise.resolve();
 // 				});
 // 			}));
-
-// 		}
+			
+// 		}	
 // 		return res.status(200).json({thong_bao: "Cập nhật sản phẩm thành công",success: true});
 
 // 	} catch (error) {
@@ -903,7 +792,7 @@ router.get<ParamTimKiemSanPham>("/tim-kiem", async (req, res) => {
 // 				})
 // 			}))
 // 		}
-
+		
 // 		const err = error as CustomError;
 // 		// console.log(err.message);
 // 		const status = err.status || 500;

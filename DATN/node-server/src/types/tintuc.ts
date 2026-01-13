@@ -1,8 +1,11 @@
 import { ParsedQs } from "qs";
-
+import { ParamsDictionary } from "express-serve-static-core";
 export interface GetAllTinTuc extends ParsedQs{
     page: string;
     limit: string;
+}
+export interface ParamsTintucByID extends ParameterDecorator{
+    id: string;
 }
 export interface AllowedUpdateTinTuc{
     tieu_de?: string;

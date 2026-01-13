@@ -52,7 +52,7 @@ router.post<{},{},createPTTTInput>('/',uploadMiddleware, validate(createPTTTsche
 })
 router.get<{},{},{},GetAllPttt>('/',async(req, res)=>{{
     try {
-        const page = Number(req.query.page) > 0 ? Number(req.query.page) : 0;
+        const page = Number(req.query.page) > 0 ? Number(req.query.page) : 1;
         const limit = Number(req.query.limit) > 0 ? Number(req.query.limit) : 10;
         const offset = (page -1) * limit;
         const {rows, count} = await  PTTT.findAndCountAll({
@@ -72,6 +72,8 @@ router.get<{},{},{},GetAllPttt>('/',async(req, res)=>{{
         };
         return res.status(200).json({result, success: true});
     } catch (error) {
+        const err = error as CustomError;
+        console.log(err.message);
         return res.status(500).json({thong_bao: "Lỗi máy chủ khí lấy danh  sách pttt", success: false});
     }
 }})

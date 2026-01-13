@@ -16,6 +16,8 @@ export class DonHang extends Model{
     public giam_gia!: number;
     public tong_tien!: number;
     public trang_thai_dh!: number;
+    public trang_thai_thanh_toan!: number;
+    public ngay_hoan_thanh!: number;
     public ghi_chu!: string;
     public ly_do_huy!: string;
     
@@ -47,7 +49,9 @@ DonHang.init({
     giam_gia: {type: DataType.INTEGER, defaultValue: 0},
     tong_tien: {type: DataType.INTEGER, defaultValue: 0},
     trang_thai_dh: {type: DataType.TINYINT, defaultValue: 0},
+    trang_thai_thanh_toan: {type: DataType.BOOLEAN, defaultValue: 0},
     ghi_chu: {type: DataType.TEXT},
+    ngay_hoan_thanh: {type: DataType.DATE, allowNull: true},
     ly_do_huy: {type: DataType.STRING,
         set(val) {
             this.setDataValue('ly_do_huy', typeof val === 'string' ? val.trim() : val);

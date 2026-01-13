@@ -23,6 +23,8 @@ import { DonHang } from "./donhang";
 import { DonHangChiTiet } from "./donhangct";
 import { PTTT } from "./pttt";
 import { Voucher } from "./voucher";
+import { YeuCauRutTien } from "./yc_rut_tien";
+import { ViShop } from "./vishop";
 // Một sản phẩm có thể được nhiều người yêu thích
 // SanPham.hasMany(YeuThichSp, { foreignKey: "id_sp", as: "yeuthichs" });
 
@@ -55,3 +57,7 @@ DonHang.belongsTo(User, {foreignKey: 'id_shop', as: 'shop'});
 DonHang.belongsTo(User, {foreignKey: "id_user",as: 'nguoi_mua'});
 DonHang.belongsTo(PTTT, {foreignKey: 'id_pttt',as: 'pttt'});
 DonHang.belongsTo(Voucher, {foreignKey: 'id_km',as: 'voucher'});
+DanhMucTin.hasMany(DanhMucTin, {foreignKey: 'parent_id',as: 'children'});
+DonHangChiTiet.belongsTo(DonHang, {foreignKey: 'id_dh',as: 'don_hang'});
+DonHangChiTiet.belongsTo(SanPham, {foreignKey: 'id_sp', as: 'san_pham'});
+YeuCauRutTien.belongsTo(User, {foreignKey: 'id_shop',as: 'shop'});

@@ -25,7 +25,7 @@ router.get('/',async(req: Request<{}, {}, {}, GetAllUser>, res: Response)=>{
         const  {rows, count} = await User.findAndCountAll({
             limit: limit,
             offset: offset,
-            attributes: ['id','tai_khoan','email','mat_khau','ho_ten','vai_tro','hinh','provider','provider_id','khoa','dien_thoai','login_failed_count','last_login_fail','createdAt'],
+            attributes: ['id','tai_khoan','email','mat_khau','ho_ten','ten_shop','vai_tro','hinh','provider','provider_id','khoa','dien_thoai','login_failed_count','last_login_fail','is_shop','createdAt'],
             order: [['createdAt','DESC']]
         });
         const totalPages = Math.ceil(count / limit);
@@ -135,8 +135,8 @@ router.get('/:id', async(req: Request<UserParams>, res: Response)=>{
         }
         const user = await User.findByPk(id,{
             attributes: [
-                'id','tai_khoan','email','ho_ten','vai_tro','hinh','provider','khoa',
-                'dien_thoai','xac_thuc_email_luc','createdAt','updatedAt'
+                'id','tai_khoan','email','ho_ten','ten_shop','vai_tro','hinh','provider','khoa',
+                'dien_thoai','xac_thuc_email_luc','is_shop','createdAt','updatedAt'
             ]
         });
         if(!user){

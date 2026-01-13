@@ -55,5 +55,8 @@ export interface allowedUpdateSanPham{
 export interface ParamTimKiemSanPham extends ParsedQs{
     page: string;
     limit: string;
-    keyword: string;
+    keyword: string|"";
+}
+export interface TimKiemGoiYSP extends ParsedQs{
+    keyword: string|"";
 }

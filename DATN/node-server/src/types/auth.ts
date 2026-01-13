@@ -21,6 +21,8 @@ export interface SafeUserData{
     tai_khoan: string;
     vai_tro: number;
     email: string;
+    is_shop: number;
+    hinh: string|null;
 }
 export interface DangKyBody{
     tai_khoan : string;

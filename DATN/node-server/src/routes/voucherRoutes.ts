@@ -1,9 +1,10 @@
 import express, { Request, Response } from 'express';
-import { Voucher } from '../models';
+import { DonHang, Voucher } from '../models';
 import { getAllVoucher } from '../types/voucher';
 import { createVoucherInput, createVoucherSchema, ParamVoucherIdInput, updateVoucherInput, updateVoucherschema, VoucherIdSchema } from '../schema/voucher.schema';
 import validate from '../middleware/validate';
 import { normalizeBoolean } from '../ultis/validate';
+
 const router = express.Router();
 interface CustomError {
 	status?: number;//dùng ? vì có khi dữ lieuj lỗi tra về ko có status
@@ -148,12 +149,12 @@ router.delete<ParamVoucherIdInput>('/:id',validate(VoucherIdSchema), async(req ,
         if(!voucher){
             throw {status: 404, thong_bao: "Khuyến mãi không tồn tại"};
         }
-        // const isUsed = await DonHang.findOne({
-        //     where: { id_km: id } 
-        // }); 
-        // if(isUsed){
-        //     throw {status: 400, thong_bao: "Khuyến mãi này đã có đơn hàng sử dụng. Không thể xóa! Vui lòng chọn 'Dừng hoạt động' (Sửa trạng thái)."}
-        // }
+        const isUsed = await DonHang.findOne({
+            where: { id_km: id } 
+        }); 
+        if(isUsed){
+            throw {status: 400, thong_bao: "Khuyến mãi này đã có đơn hàng sử dụng. Không thể xóa! Vui lòng chọn 'Dừng hoạt động' (Sửa trạng thái)."}
+        }
         await voucher.destroy();
         return res.status(200).json({thong_bao: "Đã xóa voucher thành công",success: true});
     } catch (error) {
@@ -163,4 +164,5 @@ router.delete<ParamVoucherIdInput>('/:id',validate(VoucherIdSchema), async(req ,
         return res.status(status).json({thong_bao, success: false})
     }
 })
+
 export default router;

@@ -1,5 +1,5 @@
 import { Model, WhereOptions, ModelStatic} from "sequelize";
-import {DM_San_Pham, ThuongHieu} from "../models";
+import {DM_San_Pham} from "../models";
 
 
 

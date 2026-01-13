@@ -3,12 +3,14 @@ const router = express.Router();
 import { sequelize } from '../config/database';
 import { changeStatusDonHangInput, changeStatusDonHangSchema, getDonHangDetailInput, getDonHangDetailSchema } from '../schema/donhang.schema';
 import validate from '../middleware/validate';
-import { DonHang } from '../models/donhang';
-import { DonHangChiTiet } from '../models/donhangct';
-import {  DON_HANG_DA_GIAO_VALUE, DON_HANG_HUY_VALUE } from '../config/explain';
+
+import {  DON_HANG_DA_CHUA_XAC_NHAN, DON_HANG_DA_GIAO_VALUE, DON_HANG_DANG_GIAO_VALUE, DON_HANG_HUY_VALUE, DON_HANG_SHOP_CHUAN_BI_HANG_VALUE, THANH_TOAN_THANH_CONG_VALUE } from '../config/explain';
 import { DonHangWithChiTiet, GetallDonHang } from '../types/don_hang';
-import { KhuyenMaiUser, PTTT, SanPham, SanPhamBienThe, User, Voucher } from '../models';
-import { WhereOptions } from 'sequelize';
+import { DonHang, DonHangChiTiet, KhuyenMaiUser, PTTT, SanPham, SanPhamBienThe, User, Voucher } from '../models';
+import { Op, WhereOptions } from 'sequelize';
+import { normalizeBoolean } from '../ultis/validate';
+
+
 interface CustomError {
 	status?: number;//dùng ? vì có khi dữ lieuj lỗi tra về ko có status
 	thong_bao?: string;
@@ -40,6 +42,9 @@ router.put<changeStatusDonHangInput['params'],{},changeStatusDonHangInput['body'
         if(trang_thai_moi < trang_thai_cu){
             throw {status: 400, thong_bao: "Không thể quay ngược trạng thái đơn  hàng"};
         }
+        const updateData: Partial<DonHang> = {
+            trang_thai_dh: trang_thai_moi
+        };
         //nếu set trạng thai mới hủy thì hoàn kho  hoàn voucher cho khách  hàng
         if(trang_thai_moi === DON_HANG_HUY_VALUE){
             const donHangItem = donHang.toJSON() as DonHangWithChiTiet;
@@ -83,11 +88,14 @@ router.put<changeStatusDonHangInput['params'],{},changeStatusDonHangInput['body'
                 for(const  item of donHangItem.chi_tiet_dh){
                     await SanPham.increment('da_ban',{by: item.so_luong, where: {id: item.id_sp}, transaction: t});
                 }
+                
             }
+            if(normalizeBoolean(donHang.trang_thai_thanh_toan) === 0){
+                updateData.trang_thai_thanh_toan = THANH_TOAN_THANH_CONG_VALUE;
+            }
+
         }
-        const updateData: Partial<DonHang> = {
-            trang_thai_dh: trang_thai_moi
-        };
+        
         //cặp nhật db 
         if(trang_thai_moi === DON_HANG_HUY_VALUE){
             updateData.ly_do_huy = ly_do || "admin đã hủy đơn  hàng"
@@ -129,7 +137,7 @@ router.get<{}, {}, {}, GetallDonHang>('/',async(req , res)=>{
             },{
                 model: User,
                 as: 'shop',
-                attributes: ['ho_ten','id','hinh']
+                attributes: ['ten_shop','id','hinh']
             },{
                 model: User,
                 as: 'nguoi_mua',
@@ -173,7 +181,7 @@ router.get<getDonHangDetailInput>('/:id',validate(getDonHangDetailSchema),async(
 			},{
 				model: User,
 				as:'shop',
-				attributes: ['id','ho_ten','hinh']
+				attributes: ['id','ten_shop','hinh']
 			},{
                 model: User,
                 as: 'nguoi_mua',
@@ -201,4 +209,8 @@ router.get<getDonHangDetailInput>('/:id',validate(getDonHangDetailSchema),async(
 		return res.status(status).json({thong_bao, success: false});
 	}
 })
+import { fn, col } from 'sequelize';
+
+// Route: GET /api/admin/thong-ke/trang-thai-don-hang
+
 export default router;

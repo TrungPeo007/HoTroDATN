@@ -1,6 +1,15 @@
 "use client";
-import { useState } from "react";
-import { FaBoxOpen, FaStore, FaUser, FaClipboardList } from "react-icons/fa";
+import { useEffect, useState } from "react";
+import {
+  FaBoxOpen,
+  FaStore,
+  FaUser,
+  FaClipboardList,
+  FaMoneyBillWave,
+  FaShoppingCart,
+  FaBan,
+  FaCheckCircle,
+} from "react-icons/fa";
 import {
   LineChart,
   Line,
@@ -16,25 +25,14 @@ import {
   Pie,
   Cell,
 } from "recharts";
+import RevenueColumnChart from "@/app/components/RevenueColumnChart";
+import { apiFetch } from "@/app/lib/fetcher";
 
 export default function DashboardPage() {
   const [chartType, setChartType] = useState<"line" | "bar">("line");
   const [timeRange, setTimeRange] = useState<string>("30days");
 
-  // Sample revenue data
-  const revenueData = [
-    { date: "01/09", revenue: 12000, orders: 45 },
-    { date: "02/09", revenue: 15000, orders: 52 },
-    { date: "03/09", revenue: 18000, orders: 61 },
-    { date: "04/09", revenue: 14000, orders: 48 },
-    { date: "05/09", revenue: 22000, orders: 78 },
-    { date: "06/09", revenue: 19000, orders: 65 },
-    { date: "07/09", revenue: 25000, orders: 89 },
-    { date: "08/09", revenue: 21000, orders: 72 },
-    { date: "09/09", revenue: 28000, orders: 95 },
-    { date: "10/09", revenue: 24000, orders: 83 },
-  ];
-
+  // Sample data for other charts (keep your existing data)
   const categoryData = [
     { name: "Điện tử", value: 35, color: "#0088FE" },
     { name: "Thời trang", value: 25, color: "#00C49F" },
@@ -51,205 +49,184 @@ export default function DashboardPage() {
     { name: "Shop E", revenue: 22000, orders: 89 },
   ];
 
-  // Type for tooltip props
-  interface TooltipProps {
-    active?: boolean;
-    payload?: Array<{
-      name: string;
-      value: number;
-      color: string;
-      dataKey: string;
-      payload: any;
-    }>;
-    label?: string;
-  }
+  // Fetch overview data from your API
+  const [overviewData, setOverviewData] = useState({
+    doanh_thu: 0,
+    don_da_huy: 0,
+    don_hang_moi: 0,
+    tong_user: 0,
+    tong_shop: 0,
+    san_pham_sap_het: 0,
+    don_hang_thanh_toan: 0,
+  });
 
-  const CustomTooltip = ({ active, payload, label }: TooltipProps) => {
-    if (active && payload && payload.length) {
-      return (
-        <div className="bg-white p-3 border border-gray-200 shadow-lg rounded-lg">
-          <p className="font-semibold text-gray-800">{`Ngày: ${label}`}</p>
-          {payload.map((entry, index) => (
-            <p key={index} style={{ color: entry.color }} className="text-sm">
-              {`${entry.name}: ${entry.value.toLocaleString()} VND`}
-            </p>
-          ))}
-        </div>
+  // Fetch order status data
+  const [orderStatusData, setOrderStatusData] = useState({
+    cho_xac_nhan: 0,
+    da_xac_nhan: 0,
+    dang_giao: 0,
+    thanh_cong: 0,
+    da_huy: 0,
+    tong_cong: 0,
+  });
+
+  // Fetch data on component mount
+  useEffect(() => {
+    fetchOverviewData();
+    fetchOrderStatusData();
+  }, []);
+
+  const fetchOverviewData = async () => {
+    try {
+      const response = await apiFetch(
+        "http://localhost:5000/api/admin/thong-ke/tong-quan"
       );
+      const data = await response.json();
+      if (data.success) {
+        setOverviewData(data.data);
+      }
+    } catch (error) {
+      console.error("Error fetching overview data:", error);
     }
-    return null;
   };
 
-  const formatYAxis = (value: number) => {
-    if (value >= 1000) {
-      return `${(value / 1000).toFixed(0)}k`;
+  const fetchOrderStatusData = async () => {
+    try {
+      const response = await apiFetch(
+        "http://localhost:5000/api/admin/thong-ke/trang-thai-don-hang"
+      );
+      const data = await response.json();
+      if (data.success) {
+        setOrderStatusData(data.data);
+      }
+    } catch (error) {
+      console.error("Error fetching order status data:", error);
     }
-    return value.toString();
+  };
+
+  const formatCurrency = (value: number) => {
+    return new Intl.NumberFormat("vi-VN", {
+      style: "currency",
+      currency: "VND",
+      minimumFractionDigits: 0,
+    }).format(value);
   };
 
   return (
     <div className="p-6 space-y-6">
       <h1 className="text-2xl font-bold text-gray-800">Thống kê tổng quan</h1>
 
+      {/* Overview Stats */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         <StatBox
-          icon={<FaBoxOpen />}
-          label="Tổng số sản phẩm"
-          value="1,569"
-          date="28/08/2025"
+          icon={<FaMoneyBillWave className="text-blue-600" />}
+          label="Tổng doanh thu"
+          value={formatCurrency(overviewData.doanh_thu)}
           trend="+12%"
         />
         <StatBox
-          icon={<FaStore />}
-          label="Tổng số Shop"
-          value="5,129"
-          date="28/08/2025"
+          icon={<FaShoppingCart className="text-green-600" />}
+          label="Đơn hàng mới"
+          value={overviewData.don_hang_moi.toString()}
           trend="+8%"
         />
         <StatBox
-          icon={<FaUser />}
-          label="Tổng số khách hàng"
-          value="1,569"
-          date="28/08/2025"
-          trend="+15%"
+          icon={<FaBan className="text-red-600" />}
+          label="Đơn đã hủy"
+          value={overviewData.don_da_huy.toString()}
+          trend="-3%"
         />
         <StatBox
-          icon={<FaClipboardList />}
-          label="Tổng số đơn hàng"
-          value="1,569"
-          date="28/08/2025"
-          trend="+23%"
+          icon={<FaCheckCircle className="text-purple-600" />}
+          label="Đơn đã thanh toán"
+          value={overviewData.don_hang_thanh_toan.toString()}
+          trend="+15%"
         />
       </div>
 
+      {/* Additional Stats */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <StatBox
+          icon={<FaUser className="text-indigo-600" />}
+          label="Tổng người dùng"
+          value={overviewData.tong_user.toString()}
+          trend="+5%"
+        />
+        <StatBox
+          icon={<FaStore className="text-yellow-600" />}
+          label="Tổng Shop"
+          value={overviewData.tong_shop.toString()}
+          trend="+8%"
+        />
+        <StatBox
+          icon={<FaBoxOpen className="text-pink-600" />}
+          label="Sản phẩm sắp hết"
+          value={overviewData.san_pham_sap_het.toString()}
+          trend="+2%"
+        />
+      </div>
+
+      {/* Revenue Column Chart */}
+      <RevenueColumnChart
+        onDataLoaded={(data) => {
+          // You can use this callback to update parent state if needed
+          console.log("Revenue data loaded:", data);
+        }}
+      />
+
+      {/* Order Status Distribution */}
       <div className="bg-white rounded-lg shadow p-6">
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
-          <div>
-            <h2 className="text-lg font-semibold text-gray-800">
-              Thống kê doanh thu
-            </h2>
-            <p className="text-sm text-gray-600">
-              Biểu đồ thể hiện doanh thu theo thời gian
-            </p>
-          </div>
-          <div className="flex gap-2">
-            <select
-              value={timeRange}
-              onChange={(e) => setTimeRange(e.target.value)}
-              className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="7days">7 ngày qua</option>
-              <option value="30days">30 ngày qua</option>
-              <option value="90days">90 ngày qua</option>
-              <option value="year">Năm nay</option>
-            </select>
-            <div className="flex border border-gray-300 rounded-md overflow-hidden">
-              <button
-                className={`px-3 py-2 text-sm ${
-                  chartType === "line"
-                    ? "bg-blue-500 text-white"
-                    : "bg-white text-gray-700"
-                }`}
-                onClick={() => setChartType("line")}
-              >
-                Đường
-              </button>
-              <button
-                className={`px-3 py-2 text-sm ${
-                  chartType === "bar"
-                    ? "bg-blue-500 text-white"
-                    : "bg-white text-gray-700"
-                }`}
-                onClick={() => setChartType("bar")}
-              >
-                Cột
-              </button>
-            </div>
-          </div>
-        </div>
-
-        <div className="w-full h-[400px]">
-          <ResponsiveContainer width="100%" height="100%">
-            {chartType === "line" ? (
-              <LineChart
-                data={revenueData}
-                margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
-              >
-                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                <XAxis dataKey="date" stroke="#666" />
-                <YAxis stroke="#666" tickFormatter={formatYAxis} />
-                <Tooltip content={<CustomTooltip />} />
-                <Legend />
-                <Line
-                  type="monotone"
-                  dataKey="revenue"
-                  name="Doanh thu (VND)"
-                  stroke="#8884d8"
-                  strokeWidth={2}
-                  dot={{ r: 4 }}
-                  activeDot={{ r: 6 }}
-                />
-                <Line
-                  type="monotone"
-                  dataKey="orders"
-                  name="Số đơn hàng"
-                  stroke="#82ca9d"
-                  strokeWidth={2}
-                  dot={{ r: 4 }}
-                />
-              </LineChart>
-            ) : (
-              <BarChart
-                data={revenueData}
-                margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
-              >
-                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                <XAxis dataKey="date" stroke="#666" />
-                <YAxis stroke="#666" tickFormatter={formatYAxis} />
-                <Tooltip content={<CustomTooltip />} />
-                <Legend />
-                <Bar
-                  dataKey="revenue"
-                  name="Doanh thu (VND)"
-                  fill="#8884d8"
-                  radius={[4, 4, 0, 0]}
-                />
-                <Bar
-                  dataKey="orders"
-                  name="Số đơn hàng"
-                  fill="#82ca9d"
-                  radius={[4, 4, 0, 0]}
-                />
-              </BarChart>
-            )}
-          </ResponsiveContainer>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
-          <div className="bg-blue-50 p-4 rounded-lg">
-            <p className="text-sm text-blue-600 font-medium">
-              Tổng doanh thu 10 ngày
-            </p>
-            <p className="text-2xl font-bold text-blue-800">197,000 VND</p>
-            <p className="text-xs text-blue-600">+15% so với kỳ trước</p>
-          </div>
-          <div className="bg-green-50 p-4 rounded-lg">
-            <p className="text-sm text-green-600 font-medium">
-              Đơn hàng trung bình
-            </p>
-            <p className="text-2xl font-bold text-green-800">73 đơn/ngày</p>
-            <p className="text-xs text-green-600">+8% so với kỳ trước</p>
-          </div>
-          <div className="bg-purple-50 p-4 rounded-lg">
-            <p className="text-sm text-purple-600 font-medium">
-              Giá trị đơn trung bình
-            </p>
-            <p className="text-2xl font-bold text-purple-800">269,000 VND</p>
-            <p className="text-xs text-purple-600">+5% so với kỳ trước</p>
-          </div>
+        <h2 className="text-lg font-semibold text-gray-800 mb-4">
+          Phân bổ trạng thái đơn hàng
+        </h2>
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+          <OrderStatusCard
+            status="Chờ xác nhận"
+            count={orderStatusData.cho_xac_nhan}
+            color="bg-yellow-100 text-yellow-800"
+            percentage={
+              (orderStatusData.cho_xac_nhan / orderStatusData.tong_cong) *
+                100 || 0
+            }
+          />
+          <OrderStatusCard
+            status="Đã xác nhận"
+            count={orderStatusData.da_xac_nhan}
+            color="bg-blue-100 text-blue-800"
+            percentage={
+              (orderStatusData.da_xac_nhan / orderStatusData.tong_cong) * 100 ||
+              0
+            }
+          />
+          <OrderStatusCard
+            status="Đang giao"
+            count={orderStatusData.dang_giao}
+            color="bg-purple-100 text-purple-800"
+            percentage={
+              (orderStatusData.dang_giao / orderStatusData.tong_cong) * 100 || 0
+            }
+          />
+          <OrderStatusCard
+            status="Thành công"
+            count={orderStatusData.thanh_cong}
+            color="bg-green-100 text-green-800"
+            percentage={
+              (orderStatusData.thanh_cong / orderStatusData.tong_cong) * 100 ||
+              0
+            }
+          />
+          <OrderStatusCard
+            status="Đã hủy"
+            count={orderStatusData.da_huy}
+            color="bg-red-100 text-red-800"
+            percentage={
+              (orderStatusData.da_huy / orderStatusData.tong_cong) * 100 || 0
+            }
+          />
         </div>
       </div>
 
+      {/* Other Charts (keep your existing charts) */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="bg-white rounded-lg shadow p-6">
           <h3 className="text-lg font-semibold text-gray-800 mb-4">
@@ -294,7 +271,10 @@ export default function DashboardPage() {
                 <XAxis
                   type="number"
                   stroke="#666"
-                  tickFormatter={formatYAxis}
+                  tickFormatter={(value) => {
+                    if (value >= 1000) return `${(value / 1000).toFixed(0)}k`;
+                    return value.toString();
+                  }}
                 />
                 <YAxis
                   type="category"
@@ -329,17 +309,16 @@ interface StatBoxProps {
   icon: React.ReactNode;
   label: string;
   value: string;
-  date: string;
   trend?: string;
 }
 
-function StatBox({ icon, label, value, date, trend }: StatBoxProps) {
+function StatBox({ icon, label, value, trend }: StatBoxProps) {
   return (
     <div className="bg-white rounded-lg shadow p-4 flex flex-col gap-2 hover:shadow-md transition-shadow duration-200">
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2 text-blue-600">
+        <div className="flex items-center gap-2">
           {icon}
-          <span className="font-semibold text-sm">{label}</span>
+          <span className="font-semibold text-sm text-gray-700">{label}</span>
         </div>
         {trend && (
           <span className="text-xs px-2 py-1 rounded-full bg-green-100 text-green-800 font-medium">
@@ -348,7 +327,40 @@ function StatBox({ icon, label, value, date, trend }: StatBoxProps) {
         )}
       </div>
       <div className="text-2xl font-bold text-gray-800">{value}</div>
-      <div className="text-xs text-gray-500">Cập nhật: {date}</div>
+    </div>
+  );
+}
+
+interface OrderStatusCardProps {
+  status: string;
+  count: number;
+  color: string;
+  percentage: number;
+}
+
+function OrderStatusCard({
+  status,
+  count,
+  color,
+  percentage,
+}: OrderStatusCardProps) {
+  return (
+    <div className="bg-white border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
+      <div className="flex justify-between items-start mb-2">
+        <h3 className="font-medium text-gray-700">{status}</h3>
+        <span className={`text-xs px-2 py-1 rounded-full ${color} font-medium`}>
+          {count}
+        </span>
+      </div>
+      <div className="w-full bg-gray-100 rounded-full h-2 mb-1">
+        <div
+          className="h-2 rounded-full bg-blue-500"
+          style={{ width: `${percentage}%` }}
+        ></div>
+      </div>
+      <p className="text-xs text-gray-500 text-right">
+        {percentage.toFixed(1)}%
+      </p>
     </div>
   );
 }

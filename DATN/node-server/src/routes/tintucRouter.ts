@@ -14,7 +14,6 @@ interface CustomError {
 	status?: number;//dùng ? vì có khi dữ lieuj lỗi tra về ko có status
 	thong_bao?: string;
 	message?: string;
-
 }
 type MulterFieldFiles  = {[fieldname: string]: Express.Multer.File[]};
 router.get<{},{},{},GetAllTinTuc>('/',async(req: Request, res: Response)=>{

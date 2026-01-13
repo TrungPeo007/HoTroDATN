@@ -20,7 +20,7 @@ export interface SanPhamData{
     slug: string;
     shop: {
         id: number;
-        ho_ten: string;
+        ten_shop: string;
         hinh: string;
     }
 }

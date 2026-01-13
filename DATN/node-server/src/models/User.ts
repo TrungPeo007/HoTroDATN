@@ -8,6 +8,8 @@ export class User extends Model {
   public email!: string;
   public mat_khau!: string | null;
   public ho_ten!: string | null;
+  public ten_shop!: string|null;
+  public is_shop!: number;
   public vai_tro!: number;
   public hinh!: string | null;
   public provider!: string;
@@ -45,6 +47,12 @@ User.init(
         this.setDataValue('ho_ten', typeof value === 'string' ? value.trim() : value);
       }
     },
+    ten_shop: {type: DataTypes.STRING,
+      set(val) {
+        this.setDataValue('ten_shop', typeof val === 'string' ? val.trim(): val);
+      },
+    },
+    is_shop: {type: DataTypes.BOOLEAN, defaultValue: 0},
     vai_tro: { type: DataTypes.TINYINT, defaultValue: 0 }, //0 public 1 admin
     hinh: {type: DataTypes.STRING, allowNull: true},
     provider: {type: DataTypes.STRING, defaultValue: 'local', allowNull: false},

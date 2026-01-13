@@ -2,7 +2,7 @@ import express, { Request, Response } from 'express';
 import fs from 'fs';
 import { AllowedUpdateBanner, getAllBanner } from '../types/banner';
 import { Banner } from '../models';
-import { createbannerInput, createbannerSchema, updateBannerInput, updateBannerSchema } from '../schema/banner.schema';
+import { createbannerInput, createbannerSchema, GetBannerInput, getBannerSchema, updateBannerInput, updateBannerSchema } from '../schema/banner.schema';
 import { Op } from 'sequelize';
 import { covertWebPathToAbsolutePath, processFilePath } from '../ultis/pathprocess';
 import { uploadMiddleware } from '../middleware/upload';
@@ -10,6 +10,7 @@ import { cleanUpfiles } from '../ultis/file';
 import validate from '../middleware/validate';
 import { adJustOrderInDanhMucTin } from '../ultis/adjustorder';
 import { normalizeBoolean } from '../ultis/validate';
+import { AN_HIEN_VALUE } from '../config/explain';
 const router = express.Router();
 interface CustomError {
 	status?: number;//dùng ? vì có khi dữ lieuj lỗi tra về ko có status
@@ -206,4 +207,6 @@ router.delete<updateBannerInput['params']>('/:id',async(req , res)=>{
         return res.status(status).json({thong_bao, success: false});
     }
 })
+// Route: GET /api/banner?vi_tri=home_slider
+
 export default router;

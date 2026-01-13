@@ -1,16 +1,16 @@
 import express, { Request, Response } from 'express';
 import fs from 'fs';
 import { AllowedUpdateDiaChi, CreateDiaChiByUser, DiaChiParams, GetAllDiaChiByUser } from '../types/dia_chi_user';
-import { checkAuth } from '../middleware/auth';
-import {DanhGia, DanhMucTin, Dia_chi_User, DM_San_Pham, GioHang, GioHangChiTiet, IMG_SanPham, KhuyenMaiUser, PTTT, SanPham, SanPhamBienThe, ThuocTinh, ThuocTinhSP, ThuongHieu, TinTuc, User, Voucher, YeuThichSp, YeuThichTin} from '../models';
+import { checkAuth, checkShop } from '../middleware/auth';
+import {Banner, DanhGia, DanhMucTin, Dia_chi_User, DM_San_Pham, DonHang, DonHangChiTiet, GioHang, GioHangChiTiet, IMG_SanPham, KhuyenMaiUser, PTTT, SanPham, SanPhamBienThe, ThuocTinh, ThuocTinhSP, ThuongHieu, TinTuc, User, ViShop, Voucher, YeuCauRutTien, YeuThichSp, YeuThichTin} from '../models';
 import { AuthUser } from '../types/express';
 import { getNameFromCodes, normalizeBoolean, validateAddressCodes, validateForeignKey } from '../ultis/validate';
-import { literal, Op, Order, Sequelize, where, WhereOptions } from 'sequelize';
+import { col, fn, literal, Op, Order, Sequelize, where, WhereOptions } from 'sequelize';
 import { toggleYeuThichInput, toggleYeuThichSchema } from '../schema/yeuthich.schema';
 import validate from '../middleware/validate';
 import { getAllYeuThichByUser, ParamsYeuthichSP } from '../types/yeuthich_sp';
 import { toggleYeuThichTinInput, toggleYeuThichTinSchema } from '../schema/yeuthichtin.schema';
-import { ACTIVATED_VALUE, AN_HIEN_VALUE, DON_HANG_HUY_VALUE, FIXED_SHIPPING_FEE, GiamGiaTheoPhanTram, NOi_BAT_VALUE } from '../config/explain';
+import { ACTIVATED_VALUE, AN_HIEN_VALUE, DIA_CHI_CHUA_MAC_DINH_VALUE, DIA_CHI_MAC_DINH_VALUE, DON_HANG_DA_CHUA_XAC_NHAN, DON_HANG_DA_GIAO_VALUE, DON_HANG_DANG_GIAO_VALUE, DON_HANG_HUY_VALUE, FIXED_SHIPPING_FEE, GiamGiaTheoPhanTram, KHOA_VALUE, NOi_BAT_VALUE, RUT_TIEN_PENDING_VALUE, SHOP_VALUE, THANH_TOAN_THANH_CONG_VALUE, VOUCHER_HOAT_DONG_VALUE } from '../config/explain';
 import { formattedDataYeuThichTin, ParamsYeuThichTin } from '../types/yeuthichtin';
 import { createDanhGiaSpInput, createDanhGiaSpSchema, traLoiDanhGiaSpInput, traLoiDanhGiaSpSchema } from '../schema/danhgia.schema';
 import { uploadMiddleware } from '../middleware/upload';
@@ -19,18 +19,30 @@ import { covertWebPathToAbsolutePath, processDonHangImg, processFilePath, proces
 import { IMG_DanhGia } from '../models/img_dg';
 import { cleanUpfiles } from '../ultis/file';
 import { GetAllDanhGia, ParamsDanhGiaById, ParamsDanhGiaBySlug, RatingAggregateResult } from '../types/danhgia';
-import { allowedUpdateSanPham, createBienTheSp, createThuocTinhSp, GetALLSanPHam, ImgBienThe, ParamsSanPhamBySlug, ThuocTinhMap } from '../types/sanpham';
+import { allowedUpdateSanPham, createBienTheSp, createThuocTinhSp, GetALLSanPHam, ImgBienThe, ParamsSanPhamBySlug, ParamTimKiemSanPham, ThuocTinhMap, TimKiemGoiYSP } from '../types/sanpham';
 import { createSanPhamInput, createSanPhamSchema, ParamSanPhamIdInput, sanPhamIdSchema, updateSanPhamInPut, updateSanPhamSchema } from '../schema/sanpham.schema';
 import { CartGroupByShop, CartItemWithShop, GetCartItem } from '../types/gio_hang';
-import { cartIdInput, cartIdSchema, createCartInput, createCartSchema, updateCartInput, updateCartSchema } from '../schema/cart.schema';
+import { cartIdInput, cartIdSchema, createCartInput, createCartSchema, MergeCartInput, mergeCartSchema, toggleCartInput, toggleCartSchema, updateCartInput, updateCartSchema } from '../schema/cart.schema';
 import { generateOrderCode, generateSku, generateSlug } from '../ultis/slugrename';
 import { updateUserInput, updateUserSchema } from '../schema/user.schema';
 import { DanhMucSidebarParent, DanhMucTreeNode, FilterQuery } from '../types/dm_sp';
 import { cancelDonHangInput, cancelDonHangSchema, changeStatusDonHangShopInput, changeStatusDonHangShopSchema, createDonHangInput, createDonHangSchema,  getDonHangDetailInput,  getDonHangDetailSchema, previewDonHangInput, previewDonHangSchema } from '../schema/donhang.schema';
-import { BienTheData, createSanPhamData, createShopGroup, DonHangWithChiTiet, GetallDonHang, SanPhamData, ShopGroup, whereConditionLichSuDH } from '../types/don_hang';
+import { BienTheData, createSanPhamData, createShopGroup, DonHangWithChiTiet, GetallDonHang, SanPhamData, ShopGroup } from '../types/don_hang';
 
-import { DonHang } from '../models/donhang';
-import { DonHangChiTiet } from '../models/donhangct';
+
+import { createThanhToanInput, createThanhToanSchema, ParamsThanhToanIdInput, ParamsThanhToanIdSchema } from '../schema/thanhtoan.shema';
+import { PayOsWebhookData, PayOswebhookPayLoad, ThanhToanBody } from '../types/thanhtoan';
+import { payos } from '../config/payOs';
+import { verifyPayOsWebhook } from '../ultis/payos';
+import { createShopInput, createShopSchema, rutTienInput, rutTienSchema } from '../schema/shop.schema';
+import { GetAllLichSuRutTienShop } from '../types/shop';
+import { DanhMucTinParams, DanhMucTinSidebarParent, DanhMucTinTreeNode } from '../types/dm_tin';
+import { GetAllTinTuc, ParamsTintucByID } from '../types/tintuc';
+
+import { GetBannerInput, getBannerSchema } from '../schema/banner.schema';
+import {  GroupedBanner, MangBanner } from '../types/banner';
+import { ThongKeDoanhThu, ThongKeTop } from '../types/thong_ke';
+
 
 
 const router = express.Router();
@@ -156,7 +168,7 @@ router.get<DiaChiParams>('/dia-chi/:id',checkAuth,async(req,res)=>{
 				id,
 				id_user
 			},
-			attributes: ['id','id_user','ho_ten','dia_chi','ho_ten','dien_thoai','tinh','quan','phuong','mac_dinh','createdAt']
+			attributes: ['id','id_user','dia_chi','ho_ten','dien_thoai','tinh','quan','phuong','mac_dinh','createdAt']
 		});
 		if(!diaChi){
 			throw {status: 404, thong_bao: "Địa chỉ không tồn tại"};
@@ -244,6 +256,75 @@ router.put<DiaChiParams,{},CreateDiaChiByUser>('/dia-chi/:id',checkAuth,async(re
 		return res.status(status).json({thong_bao, success: false})
 	}
 })
+// GET /dia-chi/mac-dinh
+router.get('/dia-chi-mac-dinh', checkAuth, async (req, res) => {
+    try {
+        const userPayload = req.user as AuthUser;
+        const id_user = userPayload.id;
+
+        
+        const diaChi = await Dia_chi_User.findOne({
+            where: {
+                id_user: id_user,
+                mac_dinh: DIA_CHI_MAC_DINH_VALUE
+            }
+        });
+
+        if (!diaChi) {
+            // Trường hợp user chưa set cái nào mặc định, có thể trả về null hoặc lấy cái mới nhất tạo
+            return res.status(200).json({
+                success: true,
+                data: null, 
+                thong_bao: "Chưa có địa chỉ mặc định"
+            });
+        }
+
+        return res.status(200).json({
+            success: true,
+            data: diaChi
+        });
+
+    } catch (error) {
+        return res.status(500).json({ success: false, thong_bao: "Lỗi lấy địa chỉ mặc định" });
+    }
+});
+
+// PATCH /dia-chi/set-default/:id
+router.patch<DiaChiParams>('/dia-chi-mac-dinh/:id', checkAuth, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const userPayload = req.user as AuthUser;
+        const id_user = userPayload.id;
+        const diaChi = await Dia_chi_User.findOne({
+            where: { id: id, id_user: id_user }
+        });
+
+        if (!diaChi) {
+            throw { status: 404, thong_bao: "Địa chỉ không tồn tại" };
+        }
+        if (normalizeBoolean(diaChi.mac_dinh) === DIA_CHI_MAC_DINH_VALUE) {
+            return res.status(200).json({ success: true, thong_bao: "Địa chỉ này đã là mặc định rồi" });
+        }
+
+        // 3. Reset tất cả địa chỉ của user này về 0 (Bỏ mặc định cũ)
+        await Dia_chi_User.update(
+            { mac_dinh: DIA_CHI_CHUA_MAC_DINH_VALUE },
+            { where: { id_user: id_user } }
+        );
+
+        
+        await diaChi.update({ mac_dinh: DIA_CHI_MAC_DINH_VALUE });
+
+        return res.status(200).json({
+            
+            thong_bao: "Đã thay đổi địa chỉ mặc định thành công",success: true
+        });
+
+    } catch (error) {
+        const err = error as CustomError;
+        return res.status(err.status || 500).json({ thong_bao: err.thong_bao || "Lỗi server", success: false });
+    }
+});
 router.delete<DiaChiParams>('/dia-chi/:id',checkAuth,async(req,res)=>{
 	try {
 		const {id} = req.params;
@@ -639,7 +720,7 @@ router.get<ParamsDanhGiaById, {}, {},GetAllDanhGia>('/danh-gia/:id', async(req,r
 		return res.status(status).json({thong_bao, success: false});
 	}
 })
-router.get<{},{},{},GetAllDanhGia>('/shop/danh-gia',checkAuth,async(req,res)=>{
+router.get<{},{},{},GetAllDanhGia>('/shop/danh-gia',checkShop,async(req,res)=>{
 	try {
 		const userPayload = req.user as AuthUser;
 		const id_shop = userPayload.id;
@@ -692,7 +773,7 @@ router.get<{},{},{},GetAllDanhGia>('/shop/danh-gia',checkAuth,async(req,res)=>{
 		return res.status(status).json({thong_bao, success: false});
 	}
 })
-router.put<traLoiDanhGiaSpInput['params'], {}, traLoiDanhGiaSpInput['body']>('/shop/danh-gia/:id',checkAuth,validate(traLoiDanhGiaSpSchema),async(req,res)=>{
+router.put<traLoiDanhGiaSpInput['params'], {}, traLoiDanhGiaSpInput['body']>('/shop/danh-gia/:id',checkShop,validate(traLoiDanhGiaSpSchema),async(req,res)=>{
 	try {
 		const userPayload = req.user as AuthUser;
 		const id_shop = userPayload.id;
@@ -734,7 +815,7 @@ router.get<{},{},{}, GetALLSanPHam>('/san-pham',async(req, res)=>{
 		const {rows, count} = await SanPham.findAndCountAll({
 			limit: limit,
 			offset: offset,
-			where: {an_hien: AN_HIEN_VALUE},
+			where: {an_hien: AN_HIEN_VALUE, is_active:ACTIVATED_VALUE ,khoa: {[Op.ne]: KHOA_VALUE}},
 			order: [['createdAt','DESC']],
 				include: [{
 					model: SanPhamBienThe,
@@ -813,14 +894,25 @@ router.get<{},{},{}, GetALLSanPHam>('/san-pham-noi-bat',async(req, res)=>{
 		const limit = Number(req.query.limit) > 0 ? Number(req.query.limit) : 10;
 		const offset = (page -1 ) * limit;
 		const {rows, count} = await SanPham.findAndCountAll({
-			where: {noi_bat: NOi_BAT_VALUE, an_hien: AN_HIEN_VALUE},
+			where: {noi_bat: NOi_BAT_VALUE, an_hien: AN_HIEN_VALUE, is_active: ACTIVATED_VALUE, khoa: {[Op.ne]: KHOA_VALUE}},
 			order: [['createdAt','DESC']],
 			limit: limit,
 			offset: offset
 		});
+		const danhSachSanPham = rows.map((sp)=>{
+				const item = sp.toJSON();
+				const phanTramGiam = item.sale;
+				const GiaGocCha = item.gia;
+				const giaDaGiamCha:number = phanTramGiam > 0 ? Math.round(GiaGocCha * (1 - phanTramGiam /100)) : GiaGocCha;
+				
+				return {
+					...item,
+					gia_da_giam: giaDaGiamCha,
+				}
+			})
 		const totalPages = Math.ceil(count/ limit);
 		const result = {
-			data: rows,
+			data: danhSachSanPham,
 			pagination: {
 				currentPage : page,
 				limit: limit,
@@ -840,14 +932,26 @@ router.get<{},{},{}, GetALLSanPHam>('/san-pham-sale',async(req, res)=>{
 		const limit = Number(req.query.limit) > 0 ? Number(req.query.limit) : 10;
 		const offset = (page -1 ) * limit;
 		const {rows, count} = await SanPham.findAndCountAll({
-			where: {sale: {[Op.gt]: 0}, an_hien: AN_HIEN_VALUE},
+			where: {sale: {[Op.gt]: 0}, an_hien: AN_HIEN_VALUE, is_active: ACTIVATED_VALUE, khoa: {[Op.ne]:  KHOA_VALUE}},
 			order: [['sale','DESC']],
 			limit: limit,
 			offset: offset
 		});
+		const danhSachSanPham = rows.map((sp)=>{
+				const item = sp.toJSON();
+				const phanTramGiam = item.sale;
+				const GiaGocCha = item.gia;
+				const giaDaGiamCha:number = phanTramGiam > 0 ? Math.round(GiaGocCha * (1 - phanTramGiam /100)) : GiaGocCha;
+				
+				return {
+					...item,
+					gia_da_giam: giaDaGiamCha,
+				}
+			})
+		
 		const totalPages = Math.ceil(count/ limit);
 		const result = {
-			data: rows,
+			data: danhSachSanPham,
 			pagination: {
 				currentPage : page,
 				limit: limit,
@@ -868,7 +972,7 @@ router.get<ParamsDanhGiaBySlug,{},{},GetALLSanPHam>('/san-pham/:slug',async(req,
 		const limit = Number(req.query.limit) > 0 ? Number(req.query.limit) : 10;
 		const offset = (page -1 ) * limit;
 		const sanPham = await SanPham.findOne({
-			where: {an_hien: AN_HIEN_VALUE, slug: slug},
+			where: {an_hien: AN_HIEN_VALUE, slug: slug, is_active: ACTIVATED_VALUE},
 			include: [{
 				model: SanPhamBienThe,
 				as: 'san_pham_bien_the',
@@ -895,6 +999,10 @@ router.get<ParamsDanhGiaBySlug,{},{},GetALLSanPHam>('/san-pham/:slug',async(req,
 				model: ThuongHieu,
 				as: 'thuong_hieu',
 				attributes: ['ten_th']
+			},{
+				model: User,
+				as: 'shop',
+				attributes: ['ten_shop', 'id', 'hinh']
 			}]
 		});
 		if(!sanPham){
@@ -980,7 +1088,7 @@ router.get('/get-cart',checkAuth,async(req, res)=>{
 						include: [{
 							model: User,
 							as: 'shop',
-							attributes: ['id','ho_ten','hinh']
+							attributes: ['id','ten_shop','hinh']
 						}]
 					},
 					{
@@ -1016,6 +1124,7 @@ router.get('/get-cart',checkAuth,async(req, res)=>{
 				gia_hien_tai: finalPrice,
 				gia_tong: totalPrice,
 				sale: sale,
+				da_chon: item.da_chon,
 				so_luong: item.so_luong,
 				max_so_luong: sanPhamInfo.so_luong,
 				is_active: item.san_pham.an_hien !== AN_HIEN_VALUE && sanPhamInfo.so_luong > 0,
@@ -1035,7 +1144,7 @@ router.get('/get-cart',checkAuth,async(req, res)=>{
 				const newShopEntry: CartGroupByShop = {//nó phải giông interface truyền ở treen
 
 					id_shop: shop.id,
-					ten_shop: shop.ho_ten,
+					ten_shop: shop.ten_shop,
 					hinh_shop: shop.hinh,
 					items: [itemData]
 				};
@@ -1052,6 +1161,49 @@ router.get('/get-cart',checkAuth,async(req, res)=>{
 		const err = error as CustomError;
 		console.log(err.message);
 		return res.status(500).json({thong_bao: "Lỗi máy chủ khi lấy  giỏ hàng", success: false});
+	}
+})
+router.put<{}, {}, toggleCartInput['body']>('/cart/toggle',checkAuth, validate(toggleCartSchema), async(req , res)=>{
+	try {
+		const userPayload = req.user as AuthUser;
+		const id_user = userPayload.id;
+		const {id_gh_ct, da_chon} = req.body;
+		const gioHang  = await  GioHang.findOne({
+			where: {id_user: id_user},
+			attributes: ['id']
+		});
+		if(!gioHang){
+			throw {status: 404, thong_bao: "giỏ hàng không tồn tại"};
+		}
+		const whereCondition: WhereOptions<GioHangChiTiet> = {
+			id: {[Op.in]: id_gh_ct},
+			id_gh: gioHang.id//chỉ update những cái thuôc giỏ hàng này
+		};
+		if(da_chon !== undefined){
+			await GioHangChiTiet.update({
+				da_chon: da_chon
+			},{where: whereCondition})
+		}else {
+			await GioHangChiTiet.update(
+				{da_chon: literal('NOT da_chon')},//sql thành da_chon = NOt da_chon //dạo lại giá trị
+				{where: whereCondition}
+			)
+		}
+		//newu value này dạng bolean
+		//nếu fe gửi đa chọn thì lấy da chọn ko thì đảo nguocj trạng thái củ
+		
+		
+		return res.status(200).json({thong_bao: "cập nhật trạng thái thành công",
+			data: {
+				id: id_gh_ct,
+				da_chon: da_chon//trả về undifine là toggle
+			}, success: true
+		})
+	} catch (error) {
+		const err = error as CustomError;
+		const status = err.status || 500;
+		const thong_bao = err.thong_bao || "Lỗi máy chủ khi chọn giỏ hàng chi  tiet";
+		return res.status(status).json({thong_bao, success: false})
 	}
 })
 //api dùng để thêm vào giỏ hàng
@@ -1105,7 +1257,8 @@ router.post<{},{},createCartInput>('/add-to-cart',checkAuth,validate(createCartS
 				id_gh: cart.id,
 				id_sp: id_sp,
 				id_bt: id_bt || null,
-				so_luong: so_luong
+				so_luong: so_luong,
+				da_chon: 0
 			},{transaction: t})
 		}
 		await t.commit();
@@ -1118,6 +1271,88 @@ router.post<{},{},createCartInput>('/add-to-cart',checkAuth,validate(createCartS
 		return res.status(status).json({thong_bao, success: false});
 	}
 })
+router.post<{}, {}, MergeCartInput>('/add-to-cart/merge', checkAuth, validate(mergeCartSchema), async (req, res) => {
+    const t = await sequelize.transaction();
+    try {
+        const userPayload = req.user as AuthUser;
+        const id_user = userPayload.id;
+        const { items } = req.body; // Mảng các sản phẩm từ LocalStorage
+
+        // 1. Tìm hoặc tạo giỏ hàng cho User này
+        const [cart] = await GioHang.findOrCreate({
+            where: { id_user: id_user },
+            defaults: { id_user: id_user },
+            transaction: t
+        });
+
+        // 2. Duyệt qua từng item từ LocalStorage gửi lên
+        for (const item of items) {
+            const { id_sp, id_bt, so_luong } = item;
+
+            // A. Kiểm tra sản phẩm và biến thể có tồn tại + lấy tồn kho
+            const sanPham = await SanPham.findByPk(id_sp, { transaction: t });
+            if (!sanPham) continue; // Nếu SP ko tồn tại thì bỏ qua, không throw lỗi để chạy tiếp món khác
+
+            let maxStock = sanPham.so_luong;
+            if (id_bt) {
+                const bienThe = await SanPhamBienThe.findOne({
+                    where: { id: id_bt, id_sp: id_sp },
+                    transaction: t
+                });
+                if (!bienThe) continue; // Biến thể sai thì bỏ qua
+                maxStock = bienThe.so_luong;
+            }
+
+            // B. Kiểm tra xem trong DB đã có món này chưa
+            const existingItem = await GioHangChiTiet.findOne({
+                where: {
+                    id_gh: cart.id,
+                    id_sp: id_sp,
+                    id_bt: id_bt || null 
+                },
+                transaction: t
+            });
+
+            if (existingItem) {
+                // Trường hợp ĐÃ CÓ: Cộng dồn số lượng
+                const totalQty = existingItem.so_luong + so_luong;
+                
+                // Logic thông minh: Nếu tổng > tồn kho, thì set bằng maxStock luôn (để bán được hàng)
+                // Thay vì báo lỗi chặn luôn
+                const finalQty = totalQty > maxStock ? maxStock : totalQty;
+
+                if (existingItem.so_luong < finalQty) { // Chỉ update nếu số lượng tăng lên
+                     await existingItem.update({ so_luong: finalQty }, { transaction: t });
+                }
+            } else {
+                // Trường hợp CHƯA CÓ: Tạo mới
+                // Nếu số lượng gửi lên > tồn kho -> Chỉ lấy bằng tồn kho
+                const finalQty = so_luong > maxStock ? maxStock : so_luong;
+
+                if (finalQty > 0) { // Còn hàng mới thêm
+                    await GioHangChiTiet.create({
+                        id_gh: cart.id,
+                        id_sp: id_sp,
+                        id_bt: id_bt || null,
+                        so_luong: finalQty,
+                        da_chon: 0 // Mặc định là chưa chọn
+                    }, { transaction: t });
+                }
+            }
+        }
+
+        await t.commit();
+        return res.status(200).json({ success: true, thong_bao: "Đồng bộ giỏ hàng thành công" });
+
+    } catch (error) {
+        await t.rollback();
+        const err = error as CustomError;
+        return res.status(err.status || 500).json({ 
+            success: false, 
+            thong_bao: "Lỗi khi đồng bộ giỏ hàng" 
+        });
+    }
+});
 //dùng cho nút + - nhập để update số lượng
 // có roll back vì tránh để sai dữ liệu 1 là làm  2 không làm
 router.put<updateCartInput['params'],{},updateCartInput['body']>('/update-cart/:id',checkAuth,validate(updateCartSchema),async(req, res)=>{
@@ -1239,7 +1474,7 @@ router.delete('/delete-all-cart',checkAuth,async(req, res)=>{
 
 	}
 })
-//thêm sản phẩm bởi shop
+//xem sản phẩm của 1 shop  nào đó
 router.get<ParamSanPhamIdInput, {}, {}, GetALLSanPHam>('/shops/:id/san-pham', validate(sanPhamIdSchema), async(req, res)=>{
 	try {
 		const  id_shop = req.params.id;
@@ -1247,14 +1482,14 @@ router.get<ParamSanPhamIdInput, {}, {}, GetALLSanPHam>('/shops/:id/san-pham', va
 		const page = Number(req.query.page) > 0 ? Number(req.query.page) : 1;
 		const offset = (page -1) * limit;
 		const {rows, count} = await SanPham.findAndCountAll({
-			where: {an_hien: AN_HIEN_VALUE, id_user: id_shop, is_active: ACTIVATED_VALUE},
+			where: {an_hien: AN_HIEN_VALUE, id_user: id_shop, is_active: ACTIVATED_VALUE, khoa: {[Op.ne]: KHOA_VALUE}},
 			order: [['createdAt','DESC']],
 			limit: limit,
 			offset: offset,
 			include: [{
 				model: User,
 				as:'shop',
-				attributes: ['id','ho_ten','hinh']
+				attributes: ['id','ten_shop','hinh']
 			}]
 		});
 		const totalPages = Math.ceil(count / limit);
@@ -1273,7 +1508,8 @@ router.get<ParamSanPhamIdInput, {}, {}, GetALLSanPHam>('/shops/:id/san-pham', va
 		return res.status(500).json({thong_bao:"Lỗi máy chủ khi lấy sản phẩm theo  shop",success: false});
 	}
 })
-router.get<{},{},{}, GetALLSanPHam>('/shop/san-pham',checkAuth,async(req: Request, res: Response)=>{
+//thêm sản phẩm bởi shop
+router.get<{},{},{}, GetALLSanPHam>('/shop/san-pham',checkShop,async(req: Request, res: Response)=>{
 	try {
 		const userPayload = req.user as AuthUser;
 		const id_user = userPayload.id;
@@ -1356,7 +1592,7 @@ router.get<{},{},{}, GetALLSanPHam>('/shop/san-pham',checkAuth,async(req: Reques
 		return res.status(500).json({thong_bao: "Lỗi máy chủ khi lấy danh sách sản phẩm"});
 	}
 })
-router.post<{},{}, createSanPhamInput>('/shop/san-pham',checkAuth,uploadMiddleware, validate(createSanPhamSchema),async(req,res)=>{
+router.post<{},{}, createSanPhamInput>('/shop/san-pham',checkShop,uploadMiddleware, validate(createSanPhamSchema),async(req,res)=>{
     const t = await sequelize.transaction();//tạo cái nay để lưu dũ liệu dồng bộ ở các bnagr
     const createdFile: string[] = [];
 	try {
@@ -1514,7 +1750,7 @@ router.post<{},{}, createSanPhamInput>('/shop/san-pham',checkAuth,uploadMiddlewa
 	   return res.status(status).json({thong_bao, success: false});
     }
 })
-router.get<updateSanPhamInPut['params']>('/shop/san-pham/:id',checkAuth,validate(sanPhamIdSchema),async(req, res)=>{
+router.get<updateSanPhamInPut['params']>('/shop/san-pham/:id',checkShop,validate(sanPhamIdSchema),async(req, res)=>{
 	try {
 		const {id} = req.params;
 		const userPayload = req.user as AuthUser;
@@ -1576,7 +1812,7 @@ router.get<updateSanPhamInPut['params']>('/shop/san-pham/:id',checkAuth,validate
 		return res.status(status).json({thong_bao, success: false});
 	}
 })
-router.put<updateSanPhamInPut['params'],{},updateSanPhamInPut['body']>('/shop/san-pham/:id',checkAuth,uploadMiddleware,validate(updateSanPhamSchema),async(req, res)=>{
+router.put<updateSanPhamInPut['params'],{},updateSanPhamInPut['body']>('/shop/san-pham/:id',checkShop,uploadMiddleware,validate(updateSanPhamSchema),async(req, res)=>{
 	const t = await sequelize.transaction();
 	const oldFileToDelete: string[] = [];
 	const newFileCreated: string[] = [];
@@ -1851,7 +2087,7 @@ router.put<updateSanPhamInPut['params'],{},updateSanPhamInPut['body']>('/shop/sa
 		return res.status(status).json({thong_bao, success: false});
 	}
 })
-router.delete<updateSanPhamInPut['params']>('/shop/san-pham/:id',checkAuth,validate(sanPhamIdSchema),async(req,res)=>{
+router.delete<updateSanPhamInPut['params']>('/shop/san-pham/:id',checkShop,validate(sanPhamIdSchema),async(req,res)=>{
 	const t = await sequelize.transaction();
 	try {
 		const userPayload = req.user as AuthUser;
@@ -1930,7 +2166,7 @@ router.delete<updateSanPhamInPut['params']>('/shop/san-pham/:id',checkAuth,valid
 		return res.status(status).json({thong_bao, success: false});
 	}
 })
-router.get<{}, {}, {}, GetallDonHang>('/shop/don-hang',checkAuth,async(req , res)=>{
+router.get<{}, {}, {}, GetallDonHang>('/shop/don-hang',checkShop,async(req , res)=>{
 	try {
 		const userPayload = req.user as AuthUser;
 		const id_shop = userPayload.id;
@@ -1983,7 +2219,7 @@ router.get<{}, {}, {}, GetallDonHang>('/shop/don-hang',checkAuth,async(req , res
 		return res.status(500).json({thong_bao: "Lỗi máy chủ khi xem lịch sử đơn hàng", success: false});
 	}
 })
-router.get<getDonHangDetailInput>('/shop/don-hang/:id',checkAuth,validate(getDonHangDetailSchema),async(req, res)=>{
+router.get<getDonHangDetailInput>('/shop/don-hang/:id',checkShop,validate(getDonHangDetailSchema),async(req, res)=>{
 	try {
 		const {id} = req.params;
 		const userPayload = req.user as AuthUser;
@@ -2001,7 +2237,7 @@ router.get<getDonHangDetailInput>('/shop/don-hang/:id',checkAuth,validate(getDon
 			},{
 				model: User,
 				as:'shop',
-				attributes: ['id','ho_ten','hinh']
+				attributes: ['id','ten_shop','hinh']
 			},{
                 model: User,
                 as: 'nguoi_mua',
@@ -2029,7 +2265,7 @@ router.get<getDonHangDetailInput>('/shop/don-hang/:id',checkAuth,validate(getDon
 		return res.status(status).json({thong_bao, success: false});
 	}
 })
-router.put<changeStatusDonHangShopInput['params'], {}, changeStatusDonHangShopInput['body']>('/shop/huy-don-hang/:id',checkAuth,validate(changeStatusDonHangShopSchema),async(req, res)=>{
+router.put<changeStatusDonHangShopInput['params'], {}, changeStatusDonHangShopInput['body']>('/shop/huy-don-hang/:id',checkShop,validate(changeStatusDonHangShopSchema),async(req, res)=>{
 	const t = await sequelize.transaction();
 	try {
 		const {id} = req.params;
@@ -2048,10 +2284,14 @@ router.put<changeStatusDonHangShopInput['params'], {}, changeStatusDonHangShopIn
 		if(!donHang){
 			throw {status: 404, thong_bao: "Đơn hàng không tồn tại"}
 		}
+		if(donHang.trang_thai_thanh_toan !== THANH_TOAN_THANH_CONG_VALUE){
+			throw {status: 400, thong_bao : "Đơn hàng đã thanh toán không thể hủy. Vui lòng liên hệ CSKH để được hỗ trợ hoàn tiền."};
+		}
 		//shop cchir đc hủy đơn hàng ở trạng thái  chờ xác nhận
 		if(donHang.trang_thai_dh !== 0){
 			throw {status: 400, thong_bao: "Chỉ được  hủy đơn khi đang chờ xác nhận"}
 		}
+		
 		donHang.trang_thai_dh = DON_HANG_HUY_VALUE;
 		donHang.ly_do_huy = `Shop hủy ${ly_do}`;
 		await donHang.save({transaction: t});
@@ -2099,7 +2339,7 @@ router.put<changeStatusDonHangShopInput['params'], {}, changeStatusDonHangShopIn
 		return res.status(status).json({thong_bao, success:false});
 	}
 })
-router.get('/danh-muc-san-pham/select',checkAuth,async(req, res)=>{
+router.get('/danh-muc-san-pham/select',checkShop,async(req, res)=>{
 	try {
 		const data = await DM_San_Pham.findAll({
 			where: {an_hien: AN_HIEN_VALUE},
@@ -2111,7 +2351,7 @@ router.get('/danh-muc-san-pham/select',checkAuth,async(req, res)=>{
 		return res.status(500).json({thong_bao: "Lỗi máy chu khi lấy danh sách danh mục", success: false});
 	}
 })
-router.get('/thuong-hieu-san-pham/select',checkAuth, async(req , res)=>{
+router.get('/thuong-hieu-san-pham/select', async(req , res)=>{
 	try {
 		const data = await ThuongHieu.findAll({
 			where: {an_hien: AN_HIEN_VALUE},
@@ -2123,7 +2363,7 @@ router.get('/thuong-hieu-san-pham/select',checkAuth, async(req , res)=>{
 		return res.status(200).json({thong_bao: "Lỗi máy chủ khi lấy danh sách thương hiệu", success: false})
 	}
 })
-router.get('/thuoc-tinh-san-pham/select',checkAuth, async(req, res)=>{
+router.get('/thuoc-tinh-san-pham/select',checkShop, async(req, res)=>{
 	try {
 		const data = await ThuocTinh.findAll({
 			order: [['id','DESC']],
@@ -2197,6 +2437,50 @@ router.patch<{}, {}, updateUserInput>('/cap-nhat-thong-tin-tk',checkAuth,uploadM
 
 
 //đăng ký shop
+router.post<{}, {} , createShopInput>('/dang-ky-shop',checkAuth,validate(createShopSchema),async(req, res)=>{
+	const t = await sequelize.transaction();
+	try {
+		const userPayload = req.user as AuthUser;
+		const id_user = userPayload.id;
+		const {ten_shop} = req.body;
+		//tìm user hiện tại và lock lại tránh đăng ký 2 lần
+		const user = await User.findByPk(id_user, {transaction: t, lock: true});
+		if(!user){
+			throw {status: 404, thong_bao: "User không tồn tại"};
+		}
+		if(normalizeBoolean(user.is_shop) === SHOP_VALUE){
+			throw {status: 400, thong_bao : "Bạn đã là shop  rồi không thể đăng ký làm shop  nữa"};
+		}
+		const existingShop = await User.findOne({
+			where: {ten_shop: ten_shop},
+			transaction: t,
+			lock: true
+		});
+		if(existingShop){
+			throw {status: 409, thong_bao: "tên shop  đã tồn tại"}
+		}
+		await user.update({
+			is_shop: SHOP_VALUE,
+			ten_shop: ten_shop
+		},{transaction: t});
+		const checkVi = await ViShop.findOne({where: {id_shop: id_user}, transaction: t});
+		if(!checkVi){//neeeus shop ko có tạo vị mới
+			await ViShop.create({
+				id_shop: id_user,
+				so_du: 0,
+				tong_da_rut: 0
+			},{transaction: t})	
+		}
+		await t.commit();
+		return res.status(200).json({thong_bao: `Đăng ký shop thành công! Chào mừng shop "${ten_shop}"`,success: true});
+	} catch (error) {
+		await t.rollback();
+		const err = error as CustomError;
+		const status = err.status || 500;
+		const thong_bao = err.thong_bao || "Lỗi máy chủ khi  đăng ký shop";
+		return res.status(status).json({thong_bao, success: false});
+	}
+})
 //danh muc sp
 router.get('/danh-muc-parent',async(req, res)=>{
 	try {
@@ -2310,6 +2594,7 @@ router.get<ParamsSanPhamBySlug, {}, {}, FilterQuery>('/danh-muc-san-pham/filter/
 		} : null
 		const whereClause: WhereOptions = {
 			an_hien: AN_HIEN_VALUE,
+			is_active: ACTIVATED_VALUE,
 			id_dm: {[Op.in]: listDanhMucToquery}
 		}
 		if(id_ths){
@@ -2355,7 +2640,7 @@ router.get<ParamsSanPhamBySlug, {}, {}, FilterQuery>('/danh-muc-san-pham/filter/
 			order: orderClause,
 			limit: limit,
 			offset: offset,
-			attributes: ['id','ten_sp','gia','sale','img','da_ban','luot_xem', 'diem_tb_dg','so_luong_dg','id_th', 'id_dm', 'createdAt']
+			attributes: ['id','ten_sp','gia','sale','img','slug','da_ban','luot_xem', 'diem_tb_dg','so_luong_dg','id_th', 'id_dm', 'createdAt']
 		});
 		const danhsachSanPham = rows.map((sp)=>{
 			const item = sp.toJSON();
@@ -2409,7 +2694,7 @@ router.post<{},{}, previewDonHangInput>('/xem-truoc-don-hang',checkAuth,validate
 			include: [{
 				model: User,
 				as: 'shop',
-				attributes: ['id','ho_ten','hinh']
+				attributes: ['id','ten_shop','hinh']
 			}]
 		}) ;
 		const sanPhamDB: SanPhamData[] = result.map(item =>
@@ -2465,7 +2750,7 @@ router.post<{},{}, previewDonHangInput>('/xem-truoc-don-hang',checkAuth,validate
 				shopGroups.set(shopId,{
 					shop_info: {
 						id: sanPham.shop.id,
-						ten_shop: sanPham.shop.ho_ten,
+						ten_shop: sanPham.shop.ten_shop,
 						hinh_shop: sanPham.shop.hinh
 					},
 					items: [],
@@ -2588,7 +2873,10 @@ router.post<{}, {}, createDonHangInput>('/tao-don-hang',checkAuth,validate(creat
 	try {
 		
 		const {id_dia_chi, id_pttt, items,ghi_chu,id_km} = req.body;
-		await validateForeignKey(id_pttt, PTTT,"phương thức thanh toán");
+		const phuongThucThanhToan = await PTTT.findByPk(id_pttt);
+		if(!phuongThucThanhToan){
+			throw {status: 404, thong_bao: "Phương thức thanh toán không tồn tại"}
+		}
 		const userPayload = req.user as AuthUser;
 		const  id_user_mua = userPayload.id;
 		const diaChiDB = await Dia_chi_User.findOne({
@@ -2756,6 +3044,7 @@ router.post<{}, {}, createDonHangInput>('/tao-don-hang',checkAuth,validate(creat
 				tong_tien: group.tam_tinh + FIXED_SHIPPING_FEE - giaGiamPhanBo,
 				id_km: id_km || null
 			},{transaction: t});
+			
 			createDonHangId.push(newOrder.id);
 			if(id_km){
 				await KhuyenMaiUser.create({
@@ -2784,12 +3073,12 @@ router.post<{}, {}, createDonHangInput>('/tao-don-hang',checkAuth,validate(creat
 		if(gioHang){
 			const deleteCondition = items.map((i)=>({
 				id_gh: gioHang.id, id_sp: i.id_sp, id_bt: i.id_bt || null
-			}));
+			}));//xóa gh cchi tiết thỏa các diều kiên trên
 			await GioHangChiTiet.destroy({where: {[Op.or]: deleteCondition}, transaction: t});//nó sẽ xóa những thằng thỏa mảng điều kiện trên
 		}
 		await t.commit();
 		return res.status(200).json({
-			thong_bao: "Đặt hàng thành công", data: {list_don_hang: createDonHangId}, success: true
+			thong_bao: "Đặt hàng thành công", data: {list_don_hang: createDonHangId,payment_method_code: phuongThucThanhToan.code}, success: true
 		})
 	} catch (error) {
 		
@@ -2840,7 +3129,7 @@ router.get<{}, {}, {}, GetallDonHang>('/don-hang/lich-su',checkAuth,async(req , 
 			},{
 				model: User,
 				as: 'shop',
-				attributes: ['ho_ten','id','hinh']
+				attributes: ['ten_shop','id','hinh']
 			},{
 				model: PTTT,
 				as: 'pttt',
@@ -2882,7 +3171,7 @@ router.get<getDonHangDetailInput>('/don-hang/lich-su/:id',checkAuth,validate(get
 			},{
 				model: User,
 				as:'shop',
-				attributes: ['id','ho_ten','hinh']
+				attributes: ['id','ten_shop','hinh']
 			},{
 				model: PTTT,
 				as: 'pttt',
@@ -2929,11 +3218,14 @@ router.put<cancelDonHangInput['params'], {},cancelDonHangInput['body']>('/don-ha
 		if(!donHang){
 			throw {status: 404, thong_bao: "Đơn hàng không tồn tại"};
 		}
+		if(normalizeBoolean(donHang.trang_thai_thanh_toan) === THANH_TOAN_THANH_CONG_VALUE){
+			throw {status: 400, thong_bao: "Đơn hàng đã thanh toán không thể hủy. Vui lòng liên hệ CSKH để được hỗ trợ hoàn tiền."}
+		}
 		//kiểm trả trạng thái
 		if(donHang.trang_thai_dh === DON_HANG_HUY_VALUE){
 			throw {status: 400, thong_bao: "Đơn hàng này đã  bị hủy từ trước đó rồi"};
 		}
-		if(donHang.trang_thai_dh >= 2){
+		if(donHang.trang_thai_dh !== 0){
 			throw {status: 400, thong_bao: "Đơn hàng đang giao  cho đơn vị vẫn chuyển, không thể hủy"};
 		}
 		//cặp nhất trang thái đơn  Hủy -1
@@ -2996,6 +3288,943 @@ router.put<cancelDonHangInput['params'], {},cancelDonHangInput['body']>('/don-ha
 		return res.status(status).json({thong_bao, success: false});
 	}
 })
+//thanh toán
+router.post<{},{},createThanhToanInput>('/created-payment-link',checkAuth,validate(createThanhToanSchema),async(req ,res)=>{
+	try {
+		const {id_dh} = req.body;
+		const userPayload = req.user as AuthUser;
+		const id_user = userPayload.id
+		//logic kieemr trả  đơn hàng có thể tạo link  thanh toán cho đơn hàng này ko
+		const donHang = await DonHang.findOne({
+			where: {id: id_dh, id_user: id_user}
+		});
+		if(!donHang){
+			throw {status: 404, thong_bao: "Không tìm  thấy đơn hàng hoặc bạn không có quyền thanh toán"};
+		}
+		if(normalizeBoolean(donHang.trang_thai_thanh_toan) === THANH_TOAN_THANH_CONG_VALUE){
+			throw {status: 400, thong_bao: "Đơn hàng này đã được thanh toán rồi"};
+		}
+		if(donHang.trang_thai_dh === DON_HANG_HUY_VALUE){
+			throw {status: 400, thong_bao: "Đơn hàng đã hủy vui không thể thanh toán"};
+		}
+		const thanhToanBody:ThanhToanBody  = {
+			orderCode: id_dh,
+			amount: 2000,//donHang.tong_tien,
+			description: `Thanh toan don hang`,
+			cancelUrl: `${process.env.CLENT}/checkout/cancel`,
+			returnUrl: `${process.env.CLENT}/checkout/success`
+		};
+		const payLinkResponse = await payos.paymentRequests.create(thanhToanBody);
+		return res.status(200).json({
+			url: payLinkResponse.checkoutUrl,
+			success: true
+		})
+	} catch (error) {
+		const err = error as CustomError;
+		console.log(err.message);
+		const status = err.status || 500;
+		const thong_bao = err.thong_bao || "Lỗi máy chủ khi  tạo thanh toán";
+		return res.status(status).json({thong_bao, success: false})
+	}
+})
+//api web hook 
+router.post('/payos-webhook',async(req, res)=>{
+	try {
+		// console.log(' PAYOS WEBHOOK HIT', req.body);
+		const payload = req.body as PayOswebhookPayLoad<PayOsWebhookData>;
+		//xử lý logic cập nhật đơn hàng 
+		const webhookData = verifyPayOsWebhook(payload);
+		
+		//code === 00 thành công
+		//payOs gửi code ngoài data
+		if(payload.code !== '00'){
+			// console.log("Webhook nhận được trạng thái lỗi/hủy:", payload.desc);
+			return res.status(200).json({thong_bao: "Đã nhận được trạng thái lỗi, đã bỏ qua.",success: true});
+		} 
+		console.log(`Đơn hàng ${webhookData.orderCode} thanh toán thành công. Số tiền: ${webhookData.amount}`);
+		
+			
+		const donhang = await DonHang.findByPk(webhookData.orderCode);
+		if(!donhang){
+			console.log("khonho lấy đc đơn hàng")
+		}
+		if(donhang && normalizeBoolean(donhang.trang_thai_thanh_toan)  !== THANH_TOAN_THANH_CONG_VALUE){
+			if(2000 === webhookData.amount){
+				donhang.trang_thai_thanh_toan = THANH_TOAN_THANH_CONG_VALUE;
+				console.log(donhang.trang_thai_thanh_toan)
+				await donhang.save();
+				console.log("Đã cập nhật trạng thái đơn hàng");
+			}else{
+				console.warn(`[WARNING] Đơn ${webhookData.orderCode} lệch tiền! DB: ${donhang.tong_tien}, PayOS: ${webhookData.amount}`);
+			}
+		}
+		return res.json({success: true});
+	} catch (error) {
+		const err = error as CustomError;
+		console.log(err.message);
+		
+		const thong_bao = err.thong_bao||"Lỗi máy chủ khi  thanh toán";
+		console.log(thong_bao);
+		return res.json({ success: true});
+	}
+})
+//khách hàng ẤN xác nhận đơn hàng thì + tiền dcho  shop
+router.put<getDonHangDetailInput>('/don-hang/da-nhan-hang/:id',checkAuth,validate(getDonHangDetailSchema),async(req , res)=>{
+	const t = await sequelize.transaction();
+	try {
+		const  {id} = req.params;
+		const userPayload = req.user as AuthUser;
+		const id_user = userPayload.id;
+		const donHang = await DonHang.findOne({
+			where: {
+				id: id,
+				id_user: id_user,
+				trang_thai_dh: DON_HANG_DA_GIAO_VALUE,
+				trang_thai_thanh_toan: THANH_TOAN_THANH_CONG_VALUE,
+				ngay_hoan_thanh: null,
+			}
+		, transaction: t});
+		if(!donHang){
+			throw {status: 404, thong_bao: 'Đơn hàng không hợp lệ hoặc đã xác nhận rồi'};
+		}
+		//tìm vi shop don hân nay
+		const viShop =await ViShop.findOne({
+			where: {id_shop: donHang.id_shop},
+			transaction: t
+		});
+		if(!viShop){
+			throw {status: 404, thong_bao: "Lỗi  hệ thông: Không tìm thấy ví shop"};
+		}
+		//cọng tiền và update dơn
+		const tienDonHang = Number(donHang.tong_tien);
+		await viShop.increment('so_du',{
+			by: tienDonHang,
+			transaction: t
+		});
+		await donHang.update({
+			ngay_hoan_thanh: new Date()
+		},{
+			transaction: t
+		});
+		await  t.commit();
+		return res.status(200).json({thong_bao: "Đã xác nhận nhạn hàng. Cảm ơn quý khách"});
+	} catch (error) {
+		await t.rollback();
+		const err = error as CustomError;
+		const status = err.status || 500;
+		const thong_bao = err.thong_bao || "Lỗi máy chủ khi  xác nhận đơn  hàng";
+		return res.status(status).json({thong_bao, success: false});
+	}
+})
+//api nếu khách hang huy thanh toan tren payqs khi fe trả về chek  out /cancel
+router.put<ParamsThanhToanIdInput>('/thanh-toan/huy-giao-dich/:id',checkAuth, validate(ParamsThanhToanIdSchema),async(req ,res)=>{
+	const t = await sequelize.transaction();
+	try {
+		const {id} = req.params;
+		const userPayload = req.user as AuthUser;
+		const id_user = userPayload.id;
+		const  donHang = await DonHang.findOne({
+			where: {id: id, id_user: id_user},
+			include: [{
+				model: DonHangChiTiet,
+				as: "chi_tiet_dh",
+				attributes: ['id_bt','id_sp','so_luong']
+			}],
+			lock: true,
+			transaction:t
+		});
+		if(!donHang){
+			throw {status: 404, thong_bao: "Đơn hàng không tồn tại hoặc bạn không có quyền truy cập"};
+		}
+		if (donHang.trang_thai_dh === DON_HANG_HUY_VALUE) {
+            await t.commit(); // Commit rỗng
+            return res.status(200).json({ thong_bao: "Đơn hàng đã được hủy trước đó", success: true });
+        }
+		if(normalizeBoolean(donHang.trang_thai_thanh_toan) === THANH_TOAN_THANH_CONG_VALUE){
+			throw {status: 400, thong_bao: "Đơn hàng đã thanh toán thành công,không thể hủy giao  dịch"};
+		}
+		donHang.trang_thai_dh = DON_HANG_HUY_VALUE;
+		donHang.ly_do_huy = "Khách hủy tại cổng thanh toán";
+		await donHang.save({transaction:t});
+		const donHangItem = donHang.toJSON() as DonHangWithChiTiet;
+		//hoàn kho (trả lại số lượng sản phẩm)
+		if(donHangItem.chi_tiet_dh && donHangItem.chi_tiet_dh.length > 0){
+			for(const item of donHangItem.chi_tiet_dh){
+				
+				if(item.id_bt){
+					await SanPhamBienThe.increment('so_luong',{
+						by: item.so_luong,
+						where: {id: item.id_bt},
+						transaction: t
+					})
+				}else{
+					await SanPham.increment('so_luong',{
+					by: item.so_luong,
+					where: {id: item.id_sp},
+					transaction: t
+				})
+				}
+			}
+		}
+		//hoàn voucher nếu đơnq có dùng voucher
+		if(donHang.id_km){
+			//xóa lịch xsuwr dùng voucher của user trong bang km user đẻ khi  dùng lại vãn đc tính là chưa dùng
+			await KhuyenMaiUser.destroy({
+				where: {
+					id_km: donHang.id_km,
+					id_dh: donHang.id,
+					id_user: id_user
+				},
+				transaction: t
+			})
+			//cộng lại số lượng voucher cho hệ thông
+			await Voucher.increment('so_luong',{
+				by: 1,
+				where: {id: donHang.id_km},
+				transaction: t
+			})
+			// trừ đi số lượng da dung 
+			await Voucher.decrement('da_dung',{
+				by: 1,
+				where: {id: donHang.id_km},
+				transaction:t 
+			});
+		}
+		await t.commit();
+		return res.status(200).json({thong_bao: "Đã hủy đơn hàng khi  không thanh toán", success: true})
+	} catch (error) {
+		await t.rollback();
+		const err = error as CustomError;
+		const status = err.status || 500;
+		const thong_bao = err.thong_bao || "Lỗi máy chủ khi  hủy đơn  hàng";
+		return res.status(status).json({thong_bao, success: false});
+	}
+})
+//fe sẽ gọi api này liên  tục để biết tình trạng thanh toán nếu isPaid là failed sẽ báo là đang xử lý
+router.get<ParamsThanhToanIdInput>('/thanh-toan/check-status/:id',checkAuth,validate(ParamsThanhToanIdSchema),async(req, res)=>{
+	try {
+		const {id} = req.params;
+		const userPayload = req.user as AuthUser;
+		const id_user = userPayload.id;
+		const donHang = await DonHang.findOne({
+			where: {id: id,id_user: id_user},
+			attributes: ['id', 'trang_thai_thanh_toan','trang_thai_dh','tong_tien','id_pttt']
+		});
+		if(!donHang){
+			throw {status: 404, thong_bao: "Đơn hàng không tồn tại"};
+		}
+		const phuongThucThanhToan = await PTTT.findByPk(donHang.id_pttt);
+		if(!phuongThucThanhToan){
+			throw {status: 404, thong_bao : "Phương thức thanh toán không hợp lệ"}
+		}
+		const isPaid = normalizeBoolean(donHang.trang_thai_thanh_toan) === THANH_TOAN_THANH_CONG_VALUE;
+		const isCancelled = donHang.trang_thai_dh === DON_HANG_HUY_VALUE;
+		return res.status(200).json({data: {
+			id: donHang.id,
+			is_paid: isPaid,
+			isCancelled: isCancelled,
+			payment_method_Code: phuongThucThanhToan.code
+		}, success: true})
+	} catch (error) {
+		const err = error as CustomError;
+		const thong_bao = err.thong_bao || "Lỗi máy chủ khi  xem trạng thái đơn hàng";
+		const status = err.status || 500;
+		return res.status(status).json({thong_bao,success: false})
+	}
+})
+//api rút tiền shop
+router.post<{},{},rutTienInput>('/shop/yeu-cau-rut-tien',checkShop, validate(rutTienSchema), async(req , res)=>{
+	const t = await sequelize.transaction();
+	try {
+		const  userPayload = req.user  as AuthUser;
+		const id_shop = userPayload.id;
+		const {so_tien, ten_ngan_hang, so_tk, ten_chu_tk, ghi_chu} = req.body
+		const viShop = await ViShop.findOne({
+			where: {id_shop: id_shop}
+			,transaction: t,
+			lock: true
+		})
+		if(!viShop){
+			throw {status: 404, thong_bao: "Ví của  hàng không tồn tại. Vui lòng liên hệ admin"};
+		}
+		if(viShop.so_du < so_tien){
+			throw {status: 400, thong_bao: ` Số dữ không đủ. Hiện tại bbanj có ${viShop.so_du}đ`};
+		}
+		//trừ số dữ truoc đam bảo an toàn
+		await viShop.decrement('so_du',{by: so_tien, transaction: t});
+		//tạo trang thái yêu  cầu rút tiền chờ xử  lý
+		const yeuCau = await YeuCauRutTien.create({
+			id_shop: id_shop,
+			so_tien: so_tien,
+			so_tk: so_tk,
+			ten_ngan_hang: ten_ngan_hang,
+			ten_chu_tk: ten_chu_tk,
+			trang_thai: RUT_TIEN_PENDING_VALUE,
+			ghi_chu: ghi_chu || null
+		},{transaction: t});
+		await t.commit();
+		const soDuConLai = viShop.so_du - so_tien
+		return res.status(200).json({thong_bao: 'Gửi yêu cầu rút tiền thành công, vui lòng chờ admin phê duyệt', success: true,
+			data: {
+				request_id: yeuCau.id,
+				so_tien_rut: so_tien,
+				so_du_con_lai: soDuConLai
+			}
+		});
 
+	} catch (error) {
+		await t.rollback();
+		const err = error as CustomError;
+		const thong_bao = err.thong_bao || "Lỗi máy chủ khi  gửi yêu  cầu rút tiền";
+		const status = err.status || 500;
+		return res.status(status).json({thong_bao, success: false})
+	}
+})
+router.get<{},{},{},GetAllLichSuRutTienShop>('/shop/lich-su-rut-tien',checkShop,async(req, res)=>{
+	try {
+		const userPayload = req.user as AuthUser;
+		const id_shop = userPayload.id;
+		const page = Number(req.query.page) > 0 ? Number(req.query.page) : 1;
+        const limit = Number(req.query.limit) > 0 ? Number(req.query.limit) : 10;
+        const offset = (page - 1) * limit;
+		const {rows, count} = await YeuCauRutTien.findAndCountAll({
+			where: {id_shop: id_shop},//chỉ lấy lịch sử của chính shop này
+			limit: limit,
+			offset: offset,
+			order: [['createdAt','DESC']],
+			attributes: ['id','ten_ngan_hang','so_tk','trang_thai','ghi_chu','ly_do','ngay_xu_ly','createdAt','updatedAt']
+		});
+		const totalPages = Math.ceil(count / limit);
+		return res.status(200).json({
+			result: {
+				data: rows,
+				pagination: {
+					currentPage: page,
+					limit: limit,
+					totalItem: count,
+					totalPages: totalPages
+				}
+			}
+			,success: true
+		})
+	} catch (error) {
+		const err = error as CustomError;
+		return res.status(500).json({thong_bao: "Lỗi máy chủ khi  lấy lịch sử rút tiền của shop", success: false})
+	}
+})
+//laays thong tin shop
+router.get('/shop/profile', checkShop,async(req ,res)=>{
+	try {
+		const userPayload = req.user as AuthUser;
+		const id_shop = userPayload.id;
+		const shopProfile = await User.findOne({
+			where: {
+				id: id_shop, is_shop: SHOP_VALUE
+			},
+			attributes: ['id','ten_shop','hinh','ho_ten','email','createdAt']
+		})
+		if(!shopProfile){
+			throw {status: 404, thong_bao: "Không tìm thấy thông tin shop"};
+		}
+		return res.status(200).json({
+			data: {
+				...shopProfile.toJSON()
+			},
+			success: true
+		});
+	} catch (error) {
+		const  err = error as CustomError;
+		console.log(err.message);
+		const status = err.status || 500;
+		const thong_bao = err.thong_bao || "Lỗi máy chủ khi lấy thông tin shop";		
+		return res.status(status).json({thong_bao, success: false});
+	}
+})
+//lấy  ví shop
+router.get('/shop/wallet',checkShop, async(req, res)=>{
+	try {
+		const userPayload = req.user as AuthUser;
+		const id_shop = userPayload.id;
+		const [viShop, tienDangCho] = await Promise.all([
+			ViShop.findOne({
+				where: {id_shop: id_shop}
+			}),
+			//đây là số dữ  đang xác nhân từ dơn hàng do khách hàng chưa  ấn vào đã nhận hàng hoạc giam tiền 3 ngày chờ xác nhận
+
+			DonHang.sum('tong_tien',{
+				where: {
+					id_shop: id_shop,
+					trang_thai_dh: DON_HANG_DA_GIAO_VALUE,
+					trang_thai_thanh_toan: THANH_TOAN_THANH_CONG_VALUE
+				}
+			})
+		]);
+		const walletData = {
+			so_du_kha_dung: viShop ? Number(viShop.so_du) :0,
+			tong_tien_da_rut: viShop ? Number(viShop.tong_da_rut) : 0,
+			so_du_dang_xac_nhan: tienDangCho || 0
+		}
+		return res.status(200).json({
+			data: walletData,
+			success: true
+		})
+	} catch (error) {
+		return res.status(500).json({thong_bao: "Lỗi lấy thông tin ví shop", success: false});		
+	}
+})
+router.get<{},{},{},TimKiemGoiYSP>('/tim-kiem-goi-y-san-pham',async(req , res)=>{
+	try {
+		const keyword = req.query.keyword;
+		//nếu ko có keyword hoặc rổng thì trả về mảng rổng
+		if(!keyword || keyword.trim() ===''){
+			return res.status(200).json({data:[], success: true});
+		}
+		const sanPham = await  SanPham.findAll({
+			where: {
+				ten_sp : {
+					[Op.like]: `%${keyword.trim()}%`//tìm kiếm gganf đúng
+				},
+				an_hien: AN_HIEN_VALUE,
+				is_active: ACTIVATED_VALUE
+			}
+			,limit: 5,
+			attributes: ['id','ten_sp','img','slug','createdAt'],
+			order: [['createdAt','DESC']]
+		});
+		return res.status(200).json({data: sanPham, success: true});
+	} catch (error) {
+		const err = error as CustomError;
+		console.log(err.message);
+		return res.status(500).json({thong_bao: 'Lỗi máy chủ khi  tìm kiêm  gợi ý sản phẩm', success: false});
+	}
+})
+router.get<{},{},{},ParamTimKiemSanPham>('/tim-kiem-san-pham',async(req ,res)=>{
+	try {
+		const keyword = req.query.keyword;
+		const limit = Number(req.query.limit) > 0 ? Number(req.query.limit) : 10;
+		const page = Number(req.query.page) > 0 ? Number(req.query.page) : 1;
+		const offset = (page -1) * limit;
+		const whereCondition: WhereOptions<SanPham>  = {
+			an_hien: AN_HIEN_VALUE,
+			is_active: ACTIVATED_VALUE
+		};
+		if(keyword.trim() !== ''){
+			whereCondition.ten_sp = {[Op.like]: `%${keyword.trim()}%`};
+		}
+		const {rows, count} = await SanPham.findAndCountAll({
+			where: whereCondition,
+			limit: limit,
+			offset: offset,
+			order: [['createdAt','DESC']],
+			include: [{
+				model: DM_San_Pham,
+				as: 'danh_muc',
+				attributes: ['ten_dm']
+			},{
+				model: User,
+				as: 'shop',
+				attributes: ['ten_shop','hinh']
+			}]
+		});
+		const danhSachSanPham = rows.map((sp)=>{
+				const item = sp.toJSON();
+				const phanTramGiam = item.sale;
+				const GiaGocCha = item.gia;
+				const giaDaGiamCha:number = phanTramGiam > 0 ? Math.round(GiaGocCha * (1 - phanTramGiam /100)) : GiaGocCha;
+				
+				return {
+					...item,
+					gia_da_giam: giaDaGiamCha,
+				}
+			})
+		const totalPages = Math.ceil(count / limit);
+		return res.status(200).json({
+			result: {
+				data: danhSachSanPham,
+				pagination: {
+					currentPage: page,
+					limit: limit,
+					totalItem: count,
+					totalPages: totalPages
+				}
+			},
+			success: true
+		})
+	} catch (error) {
+		return res.status(500).json({thong_bao: "Lỗi máy chủ khi tìm kiếm sản phẩm", success: false});
+	}
+})
+//voucher đẻ áp dụng vô  mã giảm giá
+router.get('/voucher',async(req, res)=>{
+	try {
+		const now = new Date();
+		const whereCondition : WhereOptions<Voucher> = {
+			trang_thai: VOUCHER_HOAT_DONG_VALUE,
+			so_luong: {[Op.gt]: 0},
+			ngay_bd: {[Op.lte]: now},//ngaybd nhỏ hơn hện tại
+			ngay_kt: {[Op.gte]:  now}
+		};
+		const voucher = await  Voucher.findAll({
+			where: whereCondition,
+			order: [['ngay_kt','ASC'],['so_luong','ASC']],
+			attributes: ['id','code','ten_km','gia_tri_giam','loai_km','gia_tri_don_min','gia_giam_toi_da','ngay_bd','ngay_kt','so_luong','createdAt']
+		});
+		return res.status(200).json({data: voucher, success: true});
+	} catch (error) {
+		const err = error as CustomError;
+		console.log(err.message);
+		return res.status(500).json({thong_bao: "lỗi lấy danh  sách voucher", success: false});
+	}
+})
+//tin tuc
+router.get('/danh-muc-tin',async(req, res)=>{
+	try {
+		const allDanhMuc = await DanhMucTin.findAll({
+			where: {an_hien: AN_HIEN_VALUE},
+			attributes: ['id','ten_dm','parent_id','stt'],
+			order: [['stt','ASC']],
+			raw: true
+		}) as unknown as DanhMucTinTreeNode[];
+		const danhMucMap = new Map<number, DanhMucTinTreeNode>();
+		const rootNodes: DanhMucTinTreeNode[] =[];
+		allDanhMuc.forEach((cat)=>{
+			danhMucMap.set(cat.id, {...cat, children: []});
+		})
+		allDanhMuc.forEach((cat)=>{
+			const node = danhMucMap.get(cat.id);
+			if(node){
+				if(cat.parent_id && danhMucMap.has(cat.parent_id)){
+					const  parentNode = danhMucMap.get(cat.parent_id);
+					parentNode?.children.push(node);
+				}else{
+					rootNodes.push(node);
+				}
+			}
+		});
+		return res.status(200).json({data: rootNodes, success: true});
+	} catch (error) {
+		return res.status(500).json({thong_bao: "Lỗi máy chủ khi  danh mục tin phân cấp ", success: false});
+	}
+})
+router.get<DanhMucTinParams>('/danh-muc-tin/:id',async(req , res)=>{
+	try {
+		const page = Number(req.query.page) > 0 ? Number(req.query.page) : 1;
+		const limit = Number(req.query.limit) > 0 ? Number(req.query.limit) : 10;
+		const {id} = req.params;
+		const offset = (page -1) * limit;
+		const currentDanhMuc = await DanhMucTin.findOne({
+			where: {id: id, an_hien: AN_HIEN_VALUE}
+		});
+		if(!currentDanhMuc){
+			throw {status: 400, thong_bao : "Danh mục tin không tồn tại"};
+		}
+		const danhMucId = currentDanhMuc.id;
+		
+		let  listDanhMucQuery : number[] = [];
+		const allDanhMuc = await DanhMucTin.findAll({
+            where: {
+                parent_id: null,  
+                an_hien: AN_HIEN_VALUE
+            },
+            attributes: ['id', 'ten_dm', 'stt'],
+            order: [['stt', 'ASC']], // Sắp xếp cha
+            include: [{
+                model: DanhMucTin,
+                as: 'children',
+                where: { an_hien: AN_HIEN_VALUE }, // Chỉ lấy con đang hiện
+                attributes: ['id', 'ten_dm', 'stt'],
+                required: false, 
+                
+            }]
+        });
+		if (currentDanhMuc.parent_id && currentDanhMuc.parent_id !== 0) {
+            //  Đang xem danh mục CON
+            //  Chỉ lấy tin của chính danh mục con này
+            listDanhMucQuery = [currentDanhMuc.id];
+        } else {
+            //  Đang xem danh mục CHA
+            // Lấy tin của CHA + Tin của tất cả các CON thuộc CHA đó
+            listDanhMucQuery = [currentDanhMuc.id];
+            
+            // Tìm các con của danh mục hiện tại để lấy ID
+            const childrenOfCurrent = await DanhMucTin.findAll({
+                where: { parent_id: currentDanhMuc.id, an_hien: AN_HIEN_VALUE },
+                attributes: ['id']
+            });
+            
+            const childrenIds = childrenOfCurrent.map(c => c.id);
+            listDanhMucQuery = listDanhMucQuery.concat(childrenIds);
+        }
+		const whereClause: WhereOptions<TinTuc> = {
+            an_hien: AN_HIEN_VALUE,
+            id_dm: { [Op.in]: listDanhMucQuery }
+        }
+
+        const { rows, count } = await TinTuc.findAndCountAll({
+            where: whereClause,
+            order: [['createdAt', 'DESC']], // Tin mới nhất lên đầu
+            limit: limit,
+            offset: offset,
+            attributes: ['id', 'tieu_de', 'img', 'id_dm','tac_gia', 'luot_xem']
+        });
+
+        const totalPages = Math.ceil(count / limit)
+		return res.status(200).json({
+			data: {
+				curent_danh_muc_id: danhMucId,
+				sidebar: allDanhMuc,
+				tin_tuc: rows,
+				pagination: {
+					currentPage: page,
+					limit: limit,
+					totalItem: count,
+					totalPages: totalPages
+				}
+			},
+			success: true
+		})
+		
+	} catch (error) {
+		const err  =error as CustomError;
+		console.log(err.message);
+		const status = err.status || 500;
+		const thong_bao = err.thong_bao || "Lỗi máy chủ khi  danh mục tin theo id";
+		return res.status(status).json({thong_bao, success: false})
+	}
+})
+router.get<ParamsTintucByID, {}, GetAllTinTuc>('/tin-tuc/:id',async(req ,res)=>{
+	try {
+		const {id} = req.params;
+		const page = Number(req.query.page) > 0 ? Number(req.query.page) : 1;
+		const limit = Number(req.query.limit) > 0 ? Number(req.query.limit) : 10;
+		const offset = (page -1) * limit;
+		const tinTuc = await TinTuc.findOne({
+			where: {an_hien: AN_HIEN_VALUE, id: id},
+			include: [{
+				model: DanhMucTin,
+				as: 'loai_tin_tuc',
+				attributes: ['id','ten_dm']
+			}]
+		});
+		if(!tinTuc){
+			throw {status: 404, thong_bao: 'Tin tức không tồn tại không thể lấy chi tiết'};
+		}
+		await  tinTuc.increment('luot_xem');
+		const tinTucItem = tinTuc.toJSON();
+		tinTucItem.luot_xem +=1;
+		const {rows, count} = await TinTuc.findAndCountAll({
+			limit: limit,
+			offset: offset,
+			where: {
+				an_hien: AN_HIEN_VALUE, id_dm: tinTuc.id_dm,
+				id: {[Op.not]: tinTuc.id}
+			},
+			attributes: ['id','tieu_de','img','id_dm','tac_gia','luot_xem','createdAt'],
+			order: [['createdAt','DESC']]
+		});
+		const totalPages = Math.ceil(count / limit);
+		const result = {
+			data: {
+				tin_tuc: tinTucItem,
+				tin_tuc_cung_loai: rows
+			},
+			pagination: {
+				currentPage: page,
+				limit: limit,
+				totalItem: count,
+				totalPages: totalPages
+			}
+		}
+		return res.status(200).json({result, success: true});
+	} catch (error) {
+		const err =error as CustomError;
+		const status = err.status || 500;
+		const thong_bao = err.thong_bao || "LỖi máy cchur khi lấy chi tiêt tin tuc";
+		return res.status(status).json({thong_bao, success: false});
+	}
+})
+//lấy banner
+router.get<{}, {}, {}, GetBannerInput['query']>('/banner', validate(getBannerSchema), async (req, res) => {
+    try {
+        const { vi_tri } = req.query;
+
+        const banners = await Banner.findAll({
+            where: {
+                vi_tri: vi_tri,
+                an_hien: AN_HIEN_VALUE 
+            },
+           
+            order: [
+                ['stt', 'ASC'], 
+            ],
+            
+            attributes: ['id', 'name', 'stt', 'url', 'vi_tri', 'stt','img','createdAt']
+        });
+
+        return res.status(200).json({
+            success: true,
+            data: banners
+        });
+
+    } catch (error) {
+        const err = error as CustomError;
+        return res.status(500).json({ 
+            thong_bao: "Lỗi máy chủ khi lấy danh sách banner", 
+            success: false 
+        });
+    }
+});
+// api lấy banner cho trang chủ.
+router.get('/banner/all-grouped', async (req, res) => {
+    try {
+        const allBanners = await Banner.findAll({
+            where: { an_hien: 1 },
+            order: [['stt', 'ASC']],
+            attributes: ['id', 'img', 'url', 'vi_tri', 'stt']
+        });
+
+        
+        const banners: MangBanner[] = allBanners.map(
+            b => b.get({ plain: true }) as MangBanner
+        );//plain true lấy object thuần
+		//group banner theo vị trs
+        const groupedData = banners.reduce<Partial<GroupedBanner>>(
+            (acc, banner) => {//nếu ac là rông gán mnag rông rồi push
+                const pos = banner.vi_tri;
+                (acc[pos] ??= []).push(banner);
+                return acc;
+            },
+            {}
+        );
+
+        const finalResult: GroupedBanner = {
+            home_top: groupedData.home_top ?? [],
+            home_middle: groupedData.home_middle ?? [],
+            home_bottom: groupedData.home_bottom ?? [],
+            home_slider: groupedData.home_slider ?? [],
+            popup: groupedData.popup ?? []
+        };
+
+        return res.status(200).json({
+            success: true,
+            data: finalResult
+        });
+
+    } catch (error) {
+        return res.status(500).json({
+            success: false,
+            thong_bao: 'Lỗi server'
+        });
+    }
+});
+router.get('/PTTT',async(req, res)=>{
+	try {
+		const phuongThucThanhToan = await PTTT.findAll({
+			where: {an_hien: AN_HIEN_VALUE},
+			order: [['id','DESC']],
+			attributes: ['id','ten_pt','code','img','an_hien']
+		});
+		return res.status(200).json({
+			data: phuongThucThanhToan, success: true
+		})
+	} catch (error) {
+		const err = error as CustomError;
+		return res.status(500).json({thong_bao: "Lỗi máy chủ khi lấy danh sách phương thức thanh  toán"});	
+	}
+})
+//api thong ke cho shop
+router.get('/shop/thong-ke-tong-quan',checkShop, async(req , res)=>{
+	try {
+		const userPayload = req.user as AuthUser;
+		const id_shop = userPayload.id;
+		const startOfDay = new Date();
+		startOfDay.setHours(0,0,0,0);//laay luc 0 gio
+		const [doanhThuHomNay, donMoiHomNay, donChoXacNhan, spSapHet] = await Promise.all([
+			DonHang.sum('tong_tien',{
+				where: {
+					id_shop: id_shop,
+					trang_thai_dh: DON_HANG_DA_GIAO_VALUE,
+					trang_thai_thanh_toan: THANH_TOAN_THANH_CONG_VALUE,
+					updatedAt: {[Op.gte]: startOfDay},
+					ngay_hoan_thanh: {[Op.ne]: null}
+				}
+			}),
+			DonHang.count({
+				where: {
+					id_shop: id_shop,
+					createdAt: {[Op.gte]: startOfDay}
+				}
+			}),
+			DonHang.count({
+				where: {
+					id_shop: id_shop,
+					trang_thai_dh: DON_HANG_DA_CHUA_XAC_NHAN
+				}
+			}),
+			SanPham.count({
+				where: {
+					id_user: id_shop,
+					so_luong: {[Op.lt]: 5},
+					an_hien: AN_HIEN_VALUE, khoa: {[Op.ne]: KHOA_VALUE}, is_active: ACTIVATED_VALUE
+				}
+			})
+		]);
+		return res.status(200).json({
+			data: {
+				doanh_thu_hom_nay: doanhThuHomNay || 0,
+				don_moi_hom_nay: donMoiHomNay,
+				don_can_xu_ly: donChoXacNhan,
+				sp_can_nhap: spSapHet
+			},
+			 success: true
+		});
+	} catch (error) {
+		const err = error as CustomError;
+		console.log(err.message);
+		return res.status(500).json({ success: false, thong_bao: "Lỗi thống kê tổng quan" });
+	}
+})
+router.get<{},{},{},ThongKeDoanhThu>('/shop/thong-ke-doanh-thu-chart', checkShop,async (req, res) => {
+	try {
+		const type = req.query.type || 'month'; // Mặc định là xem theo tháng
+		const year = Number(req.query.year) || new Date().getFullYear(); // Mặc định năm nay
+		const month = Number(req.query.month) || new Date().getMonth() + 1; // Mặc định tháng này
+		const userPayload = req.user as AuthUser;
+		const id_shop = userPayload.id
+		
+		const whereCondition: any = {
+			trang_thai_thanh_toan: THANH_TOAN_THANH_CONG_VALUE, // Tiền đã về
+			trang_thai_dh:  DON_HANG_DA_GIAO_VALUE,      // Đơn không hủy
+			ngay_hoan_thanh: {[Op.ne]: null},
+			id_shop: id_shop
+		};
+
+		let attributes: any[] = [];
+		let groupBy: any;
+		let labels: number[] = []; // Dùng để tạo trục hoành 
+
+		// 2. Xử lý Logic theo Type
+		if (type === 'month') {//nếu là mouth thì chỉ lấy yaer
+			// --- LOGIC: THỐNG KÊ 12 THÁNG TRONG NĂM ---
+			
+			// Filter theo năm
+			whereCondition[Op.and] = [
+				sequelize.where(fn('YEAR', col('createdAt')), year)
+			];
+
+			// Lấy THÁNG và TỔNG TIỀN
+			attributes = [
+				[fn('MONTH', col('createdAt')), 'label'], // Trả về 1, 2, ..., 12
+				[fn('SUM', col('tong_tien')), 'data']
+			];
+			
+			groupBy = [fn('MONTH', col('createdAt'))];
+
+			// Tạo khung xương cho 12 tháng
+			labels = Array.from({ length: 12 }, (_, i) => i + 1); // [1, 2, ..., 12]
+
+		} else if (type === 'day') {
+			//  THỐNG KÊ CÁC NGÀY TRONG 1 THÁNG ---
+			// nếu làm ngày thì lấy tham số month và year
+			// Filter theo Tháng và Năm
+			whereCondition[Op.and] = [
+				sequelize.where(fn('MONTH', col('createdAt')), month),
+				sequelize.where(fn('YEAR', col('createdAt')), year)
+			];
+
+			// Select: Lấy NGÀY và TỔNG TIỀN
+			attributes = [
+				[fn('DAY', col('createdAt')), 'label'], // Trả về 1, 2, 3...
+				[fn('SUM', col('tong_tien')), 'data']
+			];
+
+			groupBy = [fn('DAY', col('createdAt'))];
+
+			// Tính số ngày trong tháng đó (để xử lý tháng 2 nhuận, tháng 30, 31 ngày)
+			const daysInMonth = new Date(year, month, 0).getDate();
+			labels = Array.from({ length: daysInMonth }, (_, i) => i + 1); // [1, 2, ..., 30/31]
+		}
+
+		// Query Database
+		const results = await DonHang.findAll({
+			attributes: attributes,
+			where: whereCondition,
+			group: groupBy,
+			raw: true // Trả về JSON thuần để dễ map
+		}) as unknown as { label: number, data: string }[];
+
+		// Lấp đầy dữ liệu (Zero-filling) - QUAN TRỌNG
+		// Database chỉ trả về những ngày có đơn. Ta cần map vào danh sách labels đầy đủ.
+		const chartData = labels.map(label => {
+			// Tìm trong kết quả DB xem có ngày/tháng này không
+			const found = results.find(item => item.label === label);
+			return {
+				label: type === 'month' ? `Tháng ${label}` : `${label}/${month}`, // Tên hiển thị
+				value: found ? Number(found.data) : 0 // Nếu không có thì là 0đ
+			};
+		});
+
+		return res.status(200).json({
+			success: true,
+			type: type,
+			year: year,
+			month: type === 'day' ? month : null,
+			chart_data: chartData, // Mảng này ném thẳng vào FE vẽ biểu đồ
+			summary: {
+				total: chartData.reduce((acc, curr) => acc + curr.value, 0) // Tổng doanh thu cả kỳ
+			}
+		});
+
+	} catch (error) {
+		const err = error as CustomError;
+		console.error(err);
+		return res.status(500).json({ thong_bao: "Lỗi thống kê biểu đồ", success: false });
+	}
+});
+router.get<{},{}, {}, ThongKeTop>('/shop/thong-ke/san-pham-ban-chay',checkShop, async(req , res)=>{
+	try {
+		const userPayload = req.user as AuthUser;
+		const id_shop = userPayload.id;
+		const limit = Number(req.query.limit) > 0 ? Number(req.query.limit): 5;
+		const topSanPham = await SanPham.findAll({
+			where: {
+				id_user: id_shop,
+				an_hien: AN_HIEN_VALUE,
+				is_active: ACTIVATED_VALUE,
+				da_ban: {[Op.gt]: 0}
+			},
+			attributes: ['id','ten_sp','img','gia','slug','da_ban'],
+			order: [['da_ban','DESC']],
+			limit: limit
+		});
+		return res.status(200).json({	
+			data: topSanPham,
+			success: true
+		})
+	} catch (error) {
+		const err = error as CustomError;
+		console.log(err.message);
+		return res.status(500).json({thong_bao: "Lỗi máy chủ khi thông ke top sản phẩm bán chạy nhất", success: false})
+	}
+})
+//thong ke ty le don hang giao thanh cong pie chart
+router.get('/shop/thong-ke/don-hang-trang-thai',checkShop,async(req , res)=>{
+	try {
+		const userPayload = req.user as AuthUser;
+		const id_shop = userPayload.id
+		const donHangTrangThai = await DonHang.findAll({
+			where: {id_shop: id_shop},
+			attributes: [
+				'trang_thai_dh',
+				[fn('COUNT', col('id')), 'so_luong']
+			],
+			group: ['trang_thai_dh'],
+			raw: true
+		});
+		return res.status(200).json({data: donHangTrangThai, success: true})
+	} catch (error) {
+		return res.status(500).json({thong_bao: "Lỗi khi  thống kê trạng thái đơn hàng của một shop",success: false})
+	}
+})
 export default router;
 
